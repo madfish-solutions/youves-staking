@@ -27,7 +27,7 @@ from contracts.tracker.token_collateral_tracker_engine_v3 import (
     TokenTrackerEngine as TokenTrackerEngineV3,
 )
 from contracts.tracker.tracker_engine import TrackerEngine
-from contracts.tracker.unified_staking_pool import UnifiedStakingPool
+from contracts.tracker.unified_staking_pool import UnifiedStakingPool, Fa2TokenType
 from contracts.tracker.vester import Vester
 
 sp.add_compilation_target("SyntheticAssetToken", AdministrableFA2({}))
@@ -183,6 +183,7 @@ sp.add_compilation_target(
     UnifiedStakingPool(
         Constants.DEFAULT_ADDRESS,
         sp.nat(0),
+        Fa2TokenType.make(sp.nat(0), Constants.DEFAULT_ADDRESS),
         sp.nat(180 * 24 * 60 * 60),
         administrators=sp.big_map({}),
     ),

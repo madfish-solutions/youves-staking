@@ -64,6 +64,21 @@ class SwapType:
     def get_batch_type():
         return sp.TList(t=SwapType.get_type())
 
+class Fa2TokenType:
+    def get_type():
+        return sp.TRecord(
+            id=sp.TNat,
+            address=sp.TAddress,
+        ).layout(("id", "address"))
+
+    def make(token_id, token_address):
+        return sp.set_type_expr(
+            sp.record(
+                id=token_id,
+                address=token_address,
+            ),
+            Fa2TokenType.get_type(),
+        )
 
 class Stake:
     def get_type():
@@ -135,10 +150,15 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         )
         storage["disc_factor"] = sp.nat(Constants.PRECISION_FACTOR)
         storage["token_address"] = self.token_address
+        storage["reward_token"] = self.reward_token
         storage["token_id"] = self.token_id
         storage["sender"] = Constants.DEFAULT_ADDRESS
         storage["last_token_balance"] = sp.nat(0)
         storage["current_token_balance"] = sp.nat(0)
+        storage["last_rewards"] = sp.nat(0)
+        storage["current_rewards"] = sp.nat(0)
+        storage["last_total_deposit"] = sp.nat(0)
+        storage["current_total_deposit"] = sp.nat(0)
         storage["administrators"] = self.administrators
         storage["exchanges"] = sp.big_map(
             tkey=ExchangeKey.get_type(), tvalue=ExchangeValue.get_type()
@@ -149,7 +169,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         )
         return storage
 
-    def __init__(self, token_address, token_id, max_release_period, administrators):
+    def __init__(self, token_address, token_id, reward_token, max_release_period, administrators):
         """Contract initialization with the token contract (YOU), the maximum age of a stake (if a stake has an age greater than
         max_release_period, the age will be considered max_release_period) and the administrator of the contract.
 
@@ -160,6 +180,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         """
         self.token_address = token_address
         self.token_id = token_id
+        self.reward_token = reward_token
         self.max_release_period = max_release_period
         self.administrators = administrators
         self.init(**self.get_init_storage())
@@ -174,7 +195,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
             unit (sp.unit): nothing
         """
         Utils.execute_get_own_balance(
-            self.data.token_address, self.data.token_id, "set_balance"
+            self.data.reward_token.address, self.data.reward_token.id, "set_balance"
         )
 
     @sp.private_lambda(with_storage="read-write", with_operations=False, wrap_call=True)
@@ -190,12 +211,12 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         """
         with sp.if_(self.data.total_stake > 0):
             reward = sp.as_nat(
-                self.data.current_token_balance - self.data.last_token_balance
+                self.data.current_rewards - self.data.last_rewards
             )
             self.data.disc_factor += (
                 reward * Constants.PRECISION_FACTOR // self.data.total_stake
             )
-            self.data.last_token_balance = self.data.current_token_balance
+            self.data.last_rewards = self.data.current_rewards
 
     @sp.entry_point(check_no_incoming_transfer=True)
     def update_max_release_period(self, max_release_period):
@@ -216,13 +237,13 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
             balance_of_response (sp.nat): fa2 balance_of response used to set the current_token_balance
         """
         sp.set_type(balance_of_response, BalanceOf.get_response_type())
-        sp.verify(sp.sender == self.data.token_address, message=Errors.INVALID_SENDER)
+        sp.verify(sp.sender == self.data.reward_token.address, message=Errors.INVALID_SENDER)
         with sp.match_cons(balance_of_response) as matched_balance_of_response:
             sp.verify(
                 matched_balance_of_response.head.request.owner == sp.self_address,
                 message=Errors.INVALID_BALANCE_REQUEST,
             )
-            self.data.current_token_balance = matched_balance_of_response.head.balance
+            self.data.current_rewards = matched_balance_of_response.head.balance
 
     @sp.entry_point(check_no_incoming_transfer=True)
     def deposit(self, deposit_paramter):
@@ -257,7 +278,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
             token_amount.value,
         )
 
-        self.data.last_token_balance += token_amount.value
+        self.data.last_total_deposit += token_amount.value
         discounted_stake = sp.local(
             "discounted_stake",
             token_amount.value * Constants.PRECISION_FACTOR // self.data.disc_factor,
@@ -361,34 +382,49 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
             * withdraw_paramter.ratio_numerator
             // withdraw_paramter.ratio_denominator,
         )
-        current_token_amount = sp.local(
-            "current_token_amount",
+        # current_token_amount = sp.local(
+        #     "current_token_amount",
+        #     partial_stake_amount.value
+        #     * self.data.disc_factor
+        #     // Constants.PRECISION_FACTOR,
+        # )
+        current_reward = sp.local(
+            "current_reward",
             partial_stake_amount.value
             * self.data.disc_factor
             // Constants.PRECISION_FACTOR,
         )
-        token_amount = sp.local("token_amount", sp.nat(0))
-        with sp.if_(current_token_amount.value > partial_initial_token_amount.value):
-            token_amount.value = sp.as_nat(
-                current_token_amount.value - partial_initial_token_amount.value
-            )
-        payout_amount = sp.local("payout_amount", partial_initial_token_amount.value + (
-            token_amount.value * stake_age // self.data.max_release_period
-        ))
+        #token_amount = sp.local("token_amount", sp.nat(0))
+        # with sp.if_(current_token_amount.value > partial_initial_token_amount.value):
+        #     token_amount.value = sp.as_nat(
+        #         current_token_amount.value - partial_initial_token_amount.value
+        #     )
+        payout_reward = sp.local("payout_reward", current_reward.value * stake_age // self.data.max_release_period)
 
-        Utils.execute_fa2_token_transfer(
-            self.data.token_address,
-            sp.self_address,
-            self.data.sender,
-            self.data.token_id,
-            payout_amount.value,
-        )
+        # Utils.execute_fa2_token_transfer(
+        #     self.data.token_address,
+        #     sp.self_address,
+        #     self.data.sender,
+        #     self.data.token_id,
+        #     partial_initial_token_amount.value,
+        # )
 
-        self.data.last_token_balance = sp.as_nat(
-            self.data.last_token_balance - current_token_amount.value
+        # Utils.execute_fa2_token_transfer(
+        #     sp.self_address,
+        #     sp.self_address,
+        #     self.data.sender,
+        #     self.data.reward_token.id,
+        #     payout_reward.value,
+        # )
+
+        self.data.last_total_deposit = sp.as_nat(
+            self.data.last_total_deposit - partial_initial_token_amount.value
         )
         self.data.total_stake = sp.as_nat(
             self.data.total_stake - partial_stake_amount.value
+        )
+        self.data.current_rewards = sp.as_nat(
+            self.data.current_rewards - payout_reward.value
         )
 
         remaining_inital_token_amount = sp.as_nat(
