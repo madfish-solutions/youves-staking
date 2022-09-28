@@ -401,21 +401,21 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         #     )
         payout_reward = sp.local("payout_reward", current_reward.value * stake_age // self.data.max_release_period)
 
-        # Utils.execute_fa2_token_transfer(
-        #     self.data.token_address,
-        #     sp.self_address,
-        #     self.data.sender,
-        #     self.data.token_id,
-        #     partial_initial_token_amount.value,
-        # )
+        Utils.execute_fa2_token_transfer(
+            self.data.token_address,
+            sp.self_address,
+            self.data.sender,
+            self.data.token_id,
+            partial_initial_token_amount.value,
+        )
 
-        # Utils.execute_fa2_token_transfer(
-        #     sp.self_address,
-        #     sp.self_address,
-        #     self.data.sender,
-        #     self.data.reward_token.id,
-        #     payout_reward.value,
-        # )
+        Utils.execute_fa2_token_transfer(
+            sp.self_address,
+            sp.self_address,
+            self.data.sender,
+            self.data.reward_token.id,
+            payout_reward.value,
+        )
 
         self.data.last_total_deposit = sp.as_nat(
             self.data.last_total_deposit - partial_initial_token_amount.value
