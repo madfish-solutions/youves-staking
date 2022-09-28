@@ -8,62 +8,6 @@ from utils.contract_utils import Utils
 from utils.fa2 import OperatorKey, BalanceOf, FA2ErrorMessage, UpdateOperator, Transfer
 from utils.internal_mixin import InternalMixin
 
-
-# class ExchangeKey:
-#     def get_type():
-#         return sp.TRecord(
-#             src_token_id=sp.TNat,
-#             src_token_address=sp.TAddress,
-#             dst_token_id=sp.TNat,
-#             dst_token_address=sp.TAddress,
-#         ).layout(
-#             (
-#                 "src_token_id",
-#                 ("src_token_address", ("dst_token_id", "dst_token_address")),
-#             )
-#         )
-
-#     def make(src_token_id, src_token_address, dst_token_id, dst_token_address):
-#         return sp.set_type_expr(
-#             sp.record(
-#                 src_token_id=src_token_id,
-#                 src_token_address=src_token_address,
-#                 dst_token_id=dst_token_id,
-#                 dst_token_address=dst_token_address,
-#             ),
-#             ExchangeKey.get_type(),
-#         )
-
-
-# class ExchangeValue:
-#     def get_type():
-#         return sp.TRecord(
-#             oracle_address=sp.TAddress,
-#             execution_lambda=sp.TLambda(
-#                 sp.TPair(sp.TNat, sp.TNat), sp.TList(sp.TOperation)
-#             ),
-#         ).layout(("oracle_address", "execution_lambda"))
-
-#     def make(oracle_address, execution_lambda):
-#         return sp.set_type_expr(
-#             sp.record(
-#                 oracle_address=oracle_address,
-#                 execution_lambda=execution_lambda,
-#             ),
-#             ExchangeValue.get_type(),
-#         )
-
-
-# class SwapType:
-#     def get_type():
-#         return sp.TRecord(
-#             exchange_key=ExchangeKey.get_type(),
-#             token_amount=sp.TNat,
-#         ).layout(("exchange_key", "token_amount"))
-
-#     def get_batch_type():
-#         return sp.TList(t=SwapType.get_type())
-
 class Fa2TokenType:
     def get_type():
         return sp.TRecord(
@@ -97,26 +41,6 @@ class Stake:
             ),
             Stake.get_type(),
         )
-
-
-# class TradingWindow:
-#     def get_type():
-#         return sp.TRecord(
-#             initial_shift=sp.TTimestamp,
-#             duration_in_seconds=sp.TNat,
-#             recurrence_in_seconds=sp.TNat,
-#         ).layout(("initial_shift", ("duration_in_seconds", "recurrence_in_seconds")))
-
-#     def make(initial_shift, duration_in_seconds, recurrence_in_seconds):
-#         return sp.set_type_expr(
-#             sp.record(
-#                 initial_shift=initial_shift,
-#                 duration_in_seconds=duration_in_seconds,
-#                 recurrence_in_seconds=recurrence_in_seconds,
-#             ),
-#             TradingWindow.get_type(),
-#         )
-
 
 class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
     """The unified staking pool allows a user to stake their tokens and then get YOU rewards. The rewards are coming from fees of the other parts
