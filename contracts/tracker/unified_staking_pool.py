@@ -9,60 +9,60 @@ from utils.fa2 import OperatorKey, BalanceOf, FA2ErrorMessage, UpdateOperator, T
 from utils.internal_mixin import InternalMixin
 
 
-class ExchangeKey:
-    def get_type():
-        return sp.TRecord(
-            src_token_id=sp.TNat,
-            src_token_address=sp.TAddress,
-            dst_token_id=sp.TNat,
-            dst_token_address=sp.TAddress,
-        ).layout(
-            (
-                "src_token_id",
-                ("src_token_address", ("dst_token_id", "dst_token_address")),
-            )
-        )
+# class ExchangeKey:
+#     def get_type():
+#         return sp.TRecord(
+#             src_token_id=sp.TNat,
+#             src_token_address=sp.TAddress,
+#             dst_token_id=sp.TNat,
+#             dst_token_address=sp.TAddress,
+#         ).layout(
+#             (
+#                 "src_token_id",
+#                 ("src_token_address", ("dst_token_id", "dst_token_address")),
+#             )
+#         )
 
-    def make(src_token_id, src_token_address, dst_token_id, dst_token_address):
-        return sp.set_type_expr(
-            sp.record(
-                src_token_id=src_token_id,
-                src_token_address=src_token_address,
-                dst_token_id=dst_token_id,
-                dst_token_address=dst_token_address,
-            ),
-            ExchangeKey.get_type(),
-        )
-
-
-class ExchangeValue:
-    def get_type():
-        return sp.TRecord(
-            oracle_address=sp.TAddress,
-            execution_lambda=sp.TLambda(
-                sp.TPair(sp.TNat, sp.TNat), sp.TList(sp.TOperation)
-            ),
-        ).layout(("oracle_address", "execution_lambda"))
-
-    def make(oracle_address, execution_lambda):
-        return sp.set_type_expr(
-            sp.record(
-                oracle_address=oracle_address,
-                execution_lambda=execution_lambda,
-            ),
-            ExchangeValue.get_type(),
-        )
+#     def make(src_token_id, src_token_address, dst_token_id, dst_token_address):
+#         return sp.set_type_expr(
+#             sp.record(
+#                 src_token_id=src_token_id,
+#                 src_token_address=src_token_address,
+#                 dst_token_id=dst_token_id,
+#                 dst_token_address=dst_token_address,
+#             ),
+#             ExchangeKey.get_type(),
+#         )
 
 
-class SwapType:
-    def get_type():
-        return sp.TRecord(
-            exchange_key=ExchangeKey.get_type(),
-            token_amount=sp.TNat,
-        ).layout(("exchange_key", "token_amount"))
+# class ExchangeValue:
+#     def get_type():
+#         return sp.TRecord(
+#             oracle_address=sp.TAddress,
+#             execution_lambda=sp.TLambda(
+#                 sp.TPair(sp.TNat, sp.TNat), sp.TList(sp.TOperation)
+#             ),
+#         ).layout(("oracle_address", "execution_lambda"))
 
-    def get_batch_type():
-        return sp.TList(t=SwapType.get_type())
+#     def make(oracle_address, execution_lambda):
+#         return sp.set_type_expr(
+#             sp.record(
+#                 oracle_address=oracle_address,
+#                 execution_lambda=execution_lambda,
+#             ),
+#             ExchangeValue.get_type(),
+#         )
+
+
+# class SwapType:
+#     def get_type():
+#         return sp.TRecord(
+#             exchange_key=ExchangeKey.get_type(),
+#             token_amount=sp.TNat,
+#         ).layout(("exchange_key", "token_amount"))
+
+#     def get_batch_type():
+#         return sp.TList(t=SwapType.get_type())
 
 class Fa2TokenType:
     def get_type():
@@ -99,23 +99,23 @@ class Stake:
         )
 
 
-class TradingWindow:
-    def get_type():
-        return sp.TRecord(
-            initial_shift=sp.TTimestamp,
-            duration_in_seconds=sp.TNat,
-            recurrence_in_seconds=sp.TNat,
-        ).layout(("initial_shift", ("duration_in_seconds", "recurrence_in_seconds")))
+# class TradingWindow:
+#     def get_type():
+#         return sp.TRecord(
+#             initial_shift=sp.TTimestamp,
+#             duration_in_seconds=sp.TNat,
+#             recurrence_in_seconds=sp.TNat,
+#         ).layout(("initial_shift", ("duration_in_seconds", "recurrence_in_seconds")))
 
-    def make(initial_shift, duration_in_seconds, recurrence_in_seconds):
-        return sp.set_type_expr(
-            sp.record(
-                initial_shift=initial_shift,
-                duration_in_seconds=duration_in_seconds,
-                recurrence_in_seconds=recurrence_in_seconds,
-            ),
-            TradingWindow.get_type(),
-        )
+#     def make(initial_shift, duration_in_seconds, recurrence_in_seconds):
+#         return sp.set_type_expr(
+#             sp.record(
+#                 initial_shift=initial_shift,
+#                 duration_in_seconds=duration_in_seconds,
+#                 recurrence_in_seconds=recurrence_in_seconds,
+#             ),
+#             TradingWindow.get_type(),
+#         )
 
 
 class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
@@ -160,13 +160,13 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         storage["last_total_deposit"] = sp.nat(0)
         storage["current_total_deposit"] = sp.nat(0)
         storage["administrators"] = self.administrators
-        storage["exchanges"] = sp.big_map(
-            tkey=ExchangeKey.get_type(), tvalue=ExchangeValue.get_type()
-        )
+        # storage["exchanges"] = sp.big_map(
+        #     tkey=ExchangeKey.get_type(), tvalue=ExchangeValue.get_type()
+        # )
         storage["operators"] = sp.big_map(tkey=OperatorKey.get_type(), tvalue=sp.TUnit)
-        storage["trading_window"] = TradingWindow.make(
-            sp.timestamp(1652850000), sp.nat(300), sp.nat(21600)
-        )
+        # storage["trading_window"] = TradingWindow.make(
+        #     sp.timestamp(1652850000), sp.nat(300), sp.nat(21600)
+        # )
         return storage
 
     def __init__(self, token_address, token_id, reward_token, max_release_period, administrators):
@@ -516,70 +516,6 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
 
         sp.transfer(responses.value, sp.mutez(0), balance_of_request.callback)
 
-    @sp.entry_point(check_no_incoming_transfer=True)
-    def swap(self, exchange_list):
-        """Swap the cummulated rewards into YOU tokens using various DEXes set up by the admin. 
-        """
-        sp.set_type(exchange_list, SwapType.get_batch_type())
-
-        seconds_since = sp.as_nat(sp.now - self.data.trading_window.initial_shift)
-        quotient = seconds_since % self.data.trading_window.recurrence_in_seconds
-        sp.verify(
-            quotient <= self.data.trading_window.duration_in_seconds,
-            message=Errors.NOT_IN_SWAP_WINDOW,
-        )
-
-        with sp.for_("exchange", exchange_list) as exchange:
-            sp.verify(self.data.exchanges.contains(exchange.exchange_key))
-
-            exchange_value = self.data.exchanges[exchange.exchange_key]
-            min_out = sp.view(
-                "get_min_out",
-                exchange_value.oracle_address,
-                exchange.token_amount,
-                t=sp.TNat,
-            ).open_some()
-            sp.add_operations(
-                exchange_value.execution_lambda(
-                    sp.pair(exchange.token_amount, min_out)
-                ).rev()
-            )
-
-    @sp.entry_point(check_no_incoming_transfer=True)
-    def set_exchange(self, exchange_key, exchange_value):
-        """Adds an exchange (DEX) set up to the unified staking (only an admin can call this entrypoint).
-        """
-        sp.set_type(exchange_key, ExchangeKey.get_type())
-        sp.set_type(exchange_value, ExchangeValue.get_type())
-
-        self.verify_is_admin()
-        self.data.exchanges[exchange_key] = exchange_value
-
-    @sp.entry_point(check_no_incoming_transfer=True)
-    def remove_exchange(self, exchange_key):
-        """Removes an exchange (DEX) from the unified staking (only an admin can call this entrypoint).
-        """
-        sp.set_type(exchange_key, ExchangeKey.get_type())
-
-        self.verify_is_admin()
-        del self.data.exchanges[exchange_key]
-
-    @sp.entry_point(check_no_incoming_transfer=True)
-    def update_trading_window(self, trading_window):
-        """Updates the trading window on when a swap can be made (only an admin can call this entrypoint).
-        """
-        sp.set_type(trading_window, TradingWindow.get_type())
-        sp.verify(
-            trading_window.initial_shift < sp.now,
-            message=Errors.INVALID_SWAP_WINDOW_SETUP,
-        )
-        sp.verify(
-            trading_window.duration_in_seconds < trading_window.recurrence_in_seconds,
-            message=Errors.INVALID_SWAP_WINDOW_SETUP,
-        )
-
-        self.verify_is_admin()
-        self.data.trading_window = trading_window
 
     @sp.onchain_view()
     def view_balance(self, parameter):
