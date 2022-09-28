@@ -73,37 +73,29 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
             tkey=sp.TAddress, tvalue=sp.TSet(sp.TNat)
         )
         storage["disc_factor"] = sp.nat(Constants.PRECISION_FACTOR)
-        storage["token_address"] = self.token_address
+        storage["deposit_token"] = self.deposit_token
         storage["reward_token"] = self.reward_token
-        storage["token_id"] = self.token_id
         storage["sender"] = Constants.DEFAULT_ADDRESS
-        storage["last_token_balance"] = sp.nat(0)
-        storage["current_token_balance"] = sp.nat(0)
         storage["last_rewards"] = sp.nat(0)
         storage["current_rewards"] = sp.nat(0)
         storage["last_total_deposit"] = sp.nat(0)
         storage["current_total_deposit"] = sp.nat(0)
         storage["administrators"] = self.administrators
-        # storage["exchanges"] = sp.big_map(
-        #     tkey=ExchangeKey.get_type(), tvalue=ExchangeValue.get_type()
-        # )
+
         storage["operators"] = sp.big_map(tkey=OperatorKey.get_type(), tvalue=sp.TUnit)
-        # storage["trading_window"] = TradingWindow.make(
-        #     sp.timestamp(1652850000), sp.nat(300), sp.nat(21600)
-        # )
         return storage
 
-    def __init__(self, token_address, token_id, reward_token, max_release_period, administrators):
+    def __init__(self, deposit_token, reward_token, max_release_period, administrators):
         """Contract initialization with the token contract (YOU), the maximum age of a stake (if a stake has an age greater than
         max_release_period, the age will be considered max_release_period) and the administrator of the contract.
 
         Args:
             engine_address (sp.address): engine address
-            token_address (sp.address): token address
+            deposit_token (Fa2TokenType): deposit token
             token_id (sp.nat): token id
+            reward_token (Fa2TokenType): reward token
         """
-        self.token_address = token_address
-        self.token_id = token_id
+        self.deposit_token = deposit_token
         self.reward_token = reward_token
         self.max_release_period = max_release_period
         self.administrators = administrators
@@ -195,10 +187,10 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
 
         token_amount = sp.local("token_amount", deposit_paramter.token_amount)
         Utils.execute_fa2_token_transfer(
-            self.data.token_address,
+            self.data.deposit_token.address,
             self.data.sender,
             sp.self_address,
-            self.data.token_id,
+            self.data.deposit_token.id,
             token_amount.value,
         )
 
@@ -326,15 +318,15 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         payout_reward = sp.local("payout_reward", current_reward.value * stake_age // self.data.max_release_period)
 
         Utils.execute_fa2_token_transfer(
-            self.data.token_address,
+            self.data.deposit_token.address,
             sp.self_address,
             self.data.sender,
-            self.data.token_id,
+            self.data.deposit_token.id,
             partial_initial_token_amount.value,
         )
 
         Utils.execute_fa2_token_transfer(
-            sp.self_address,
+            self.data.reward_token.address,
             sp.self_address,
             self.data.sender,
             self.data.reward_token.id,
