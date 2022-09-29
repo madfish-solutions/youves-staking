@@ -24,6 +24,38 @@ class Fa2TokenType:
             Fa2TokenType.get_type(),
         )
 
+class DexVoteType:
+    def get_type():
+        return sp.TRecord(
+            pair_id=sp.TNat,
+            candidate=sp.TKeyHash,
+        ).layout(("pair_id", "candidate"))
+
+    def make(vote, amount):
+        return sp.set_type_expr(
+            sp.record(
+                pair_id=pair_id,
+                candidate=candidate,
+            ),
+            DexVoteType.get_type(),
+        )
+
+class WithdrawBakerRewardType:
+    def get_type():
+        return sp.TRecord(
+            receiver=sp.TAddress,
+            pair_id=sp.TNat,
+        ).layout(("receiver", "pair_id"))
+
+    def make(baker, amount):
+        return sp.set_type_expr(
+            sp.record(
+                baker=baker,
+                amount=amount,
+            ),
+            WithdrawBakerRewardType.get_type(),
+        )
+
 class Stake:
     def get_type():
         return sp.TRecord(
@@ -74,6 +106,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         )
         storage["disc_factor"] = sp.nat(Constants.PRECISION_FACTOR)
         storage["deposit_token"] = self.deposit_token
+        storage["deposit_token_is_v2"] = self.deposit_token_is_v2
         storage["reward_token"] = self.reward_token
         storage["sender"] = Constants.DEFAULT_ADDRESS
         storage["last_rewards"] = sp.nat(0)
@@ -85,7 +118,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         storage["operators"] = sp.big_map(tkey=OperatorKey.get_type(), tvalue=sp.TUnit)
         return storage
 
-    def __init__(self, deposit_token, reward_token, max_release_period, administrators):
+    def __init__(self, deposit_token, deposit_token_is_v2, reward_token, max_release_period, administrators):
         """Contract initialization with the token contract (YOU), the maximum age of a stake (if a stake has an age greater than
         max_release_period, the age will be considered max_release_period) and the administrator of the contract.
 
@@ -96,6 +129,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
             reward_token (Fa2TokenType): reward token
         """
         self.deposit_token = deposit_token
+        self.deposit_token_is_v2 = deposit_token_is_v2
         self.reward_token = reward_token
         self.max_release_period = max_release_period
         self.administrators = administrators
@@ -358,6 +392,38 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
                 withdraw_paramter.stake_id
             ].token_amount = remaining_inital_token_amount
             self.data.stakes[withdraw_paramter.stake_id].stake = remaining_stake
+
+    @sp.entry_point(check_no_incoming_transfer=True)
+    def vote(self, params):
+        self.verify_is_admin()
+        sp.set_type(
+            params,
+            DexVoteType.get_type(),
+        )
+
+        dex_contract = sp.contract(
+            DexVoteType.get_type(), self.data.deposit_token.address, entry_point="vote"
+        ).open_some()
+    
+        sp.transfer(params, sp.mutez(0), dex_contract)
+
+    @sp.entry_point(check_no_incoming_transfer=True)
+    def claim_baker_reward(self, params):
+        """ """
+        self.verify_is_admin()
+        
+        sp.set_type(
+            params,
+            WithdrawBakerRewardType.get_type(),
+        )
+
+        dex_contract = sp.contract(
+            WithdrawBakerRewardType.get_type(), self.data.deposit_token.address, entry_point="withdraw_profit"
+        ).open_some()
+
+        sp.transfer(
+            params, sp.mutez(0), dex_contract
+        )
 
     @sp.entry_point(check_no_incoming_transfer=True)
     def update_operators(self, update_operators):
