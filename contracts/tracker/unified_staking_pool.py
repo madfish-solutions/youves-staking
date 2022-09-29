@@ -27,16 +27,16 @@ class Fa2TokenType:
 class Stake:
     def get_type():
         return sp.TRecord(
-            token_amount=sp.TNat,  # token_amount
-            stake=sp.TNat,  # stake_weight
+            stake=sp.TNat,  # stake
+            disc_factor=sp.TNat,  # disc_factor
             age_timestamp=sp.TTimestamp,  # age
-        ).layout(("token_amount", ("stake", "age_timestamp")))
+        ).layout(("stake", ("disc_factor", "age_timestamp")))
 
-    def make(token_amount, stake, age_timestamp):
+    def make(stake, disc_factor, age_timestamp):
         return sp.set_type_expr(
             sp.record(
-                token_amount=token_amount,
                 stake=stake,
+                disc_factor=disc_factor,
                 age_timestamp=age_timestamp,
             ),
             Stake.get_type(),
@@ -78,8 +78,6 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         storage["sender"] = Constants.DEFAULT_ADDRESS
         storage["last_rewards"] = sp.nat(0)
         storage["current_rewards"] = sp.nat(0)
-        storage["last_total_deposit"] = sp.nat(0)
-        storage["current_total_deposit"] = sp.nat(0)
         storage["administrators"] = self.administrators
 
         storage["operators"] = sp.big_map(tkey=OperatorKey.get_type(), tvalue=sp.TUnit)
@@ -194,11 +192,6 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
             token_amount.value,
         )
 
-        self.data.last_total_deposit += token_amount.value
-        discounted_stake = sp.local(
-            "discounted_stake",
-            token_amount.value * Constants.PRECISION_FACTOR // self.data.disc_factor,
-        )
         stake_id = sp.local("stake_id", deposit_paramter.stake_id)
 
         with sp.if_(stake_id.value > 0):
@@ -218,15 +211,31 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
                 sp.as_nat(sp.now - stake.value.age_timestamp),
                 self.data.max_release_period,
             )
-            new_stake = sp.local("new_stake", stake.value.stake + discounted_stake.value)
+            new_stake = sp.local("new_stake", stake.value.stake + token_amount.value)
+            sender_disc_factor = stake.value.disc_factor
             new_age_timestamp = sp.local(
                 "new_age_timestamp",
                 sp.now.add_seconds(
                     -1 * sp.to_int((stake.value.stake * stake_age // new_stake.value))
                 ),
             )  # this is negative addition == substraction because no "remove_seconds" exists in smartpy
+            current_reward_token_amount = sp.local(
+                "current_reward_token_amount",
+                stake.value.stake
+                * sp.as_nat(self.data.disc_factor - sender_disc_factor)
+                // Constants.PRECISION_FACTOR,
+            )
+            new_sender_disc_factor = sp.local(
+                "new_sender_disc_factor",
+                sp.as_nat(
+                    self.data.disc_factor
+                    - current_reward_token_amount.value
+                    * Constants.PRECISION_FACTOR
+                    // new_stake.value
+                ),
+            )
             stake.value.stake = new_stake.value
-            stake.value.token_amount += token_amount.value
+            stake.value.disc_factor = new_sender_disc_factor.value
             stake.value.age_timestamp = new_age_timestamp.value
             self.data.stakes[stake_id.value] = stake.value
         with sp.else_():
@@ -234,11 +243,11 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
                 self.data.stakes_owner_lookup[self.data.sender] = sp.set([])
             self.data.stakes_owner_lookup[self.data.sender].add(stake_id.value)
             self.data.stakes[stake_id.value] = sp.record(
-                token_amount=token_amount.value,
-                stake=discounted_stake.value,
+                disc_factor=self.data.disc_factor,
+                stake=token_amount.value,
                 age_timestamp=sp.now,
             )
-        self.data.total_stake += discounted_stake.value
+        self.data.total_stake += token_amount.value
 
     @sp.entry_point(check_no_incoming_transfer=True)
     def withdraw(self, withdraw_paramter):
@@ -246,7 +255,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         sp.set_type(
             withdraw_paramter,
             sp.TRecord(
-                ratio_numerator=sp.TNat, ratio_denominator=sp.TNat, stake_id=sp.TNat
+                stake_id=sp.TNat
             ),
         )
 
@@ -262,12 +271,13 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         sp.set_type(
             withdraw_paramter,
             sp.TRecord(
-                ratio_numerator=sp.TNat, ratio_denominator=sp.TNat, stake_id=sp.TNat
+                stake_id=sp.TNat
             ),
         )
 
         self.verify_internal(sp.unit)
         self.sub_update_factor(sp.unit)
+        # self.sub_claim(sp.unit)
 
         stake = sp.local("stake", self.data.stakes[withdraw_paramter.stake_id])
 
@@ -277,87 +287,23 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
             ),
             message=Errors.NOT_OWNER,
         )
-        sp.verify(
-            withdraw_paramter.ratio_numerator <= withdraw_paramter.ratio_denominator,
-            message=Errors.INVALID_PARAMETER,
-        )
-
-        stake_age = sp.min(
-            sp.as_nat(sp.now - stake.value.age_timestamp), self.data.max_release_period
-        )
-
-        partial_initial_token_amount = sp.local(
-            "partial_initial_token_amount",
-            stake.value.token_amount
-            * withdraw_paramter.ratio_numerator
-            // withdraw_paramter.ratio_denominator,
-        )
-        partial_stake_amount = sp.local(
-            "partial_stake_amount",
-            stake.value.stake
-            * withdraw_paramter.ratio_numerator
-            // withdraw_paramter.ratio_denominator,
-        )
-        # current_token_amount = sp.local(
-        #     "current_token_amount",
-        #     partial_stake_amount.value
-        #     * self.data.disc_factor
-        #     // Constants.PRECISION_FACTOR,
-        # )
-        current_reward = sp.local(
-            "current_reward",
-            partial_stake_amount.value
-            * self.data.disc_factor
-            // Constants.PRECISION_FACTOR,
-        )
-        #token_amount = sp.local("token_amount", sp.nat(0))
-        # with sp.if_(current_token_amount.value > partial_initial_token_amount.value):
-        #     token_amount.value = sp.as_nat(
-        #         current_token_amount.value - partial_initial_token_amount.value
-        #     )
-        payout_reward = sp.local("payout_reward", current_reward.value * stake_age // self.data.max_release_period)
 
         Utils.execute_fa2_token_transfer(
             self.data.deposit_token.address,
             sp.self_address,
             self.data.sender,
             self.data.deposit_token.id,
-            partial_initial_token_amount.value,
+            stake.value.stake,
         )
 
-        Utils.execute_fa2_token_transfer(
-            self.data.reward_token.address,
-            sp.self_address,
-            self.data.sender,
-            self.data.reward_token.id,
-            payout_reward.value,
-        )
-
-        self.data.last_total_deposit = sp.as_nat(
-            self.data.last_total_deposit - partial_initial_token_amount.value
-        )
         self.data.total_stake = sp.as_nat(
-            self.data.total_stake - partial_stake_amount.value
-        )
-        self.data.current_rewards = sp.as_nat(
-            self.data.current_rewards - payout_reward.value
+            self.data.total_stake - stake.value.stake
         )
 
-        remaining_inital_token_amount = sp.as_nat(
-            stake.value.token_amount - partial_initial_token_amount.value
+        del self.data.stakes[withdraw_paramter.stake_id]
+        self.data.stakes_owner_lookup[self.data.sender].remove(
+            withdraw_paramter.stake_id
         )
-        remaining_stake = sp.as_nat(stake.value.stake - partial_stake_amount.value)
-
-        with sp.if_(remaining_stake == 0):
-            del self.data.stakes[withdraw_paramter.stake_id]
-            self.data.stakes_owner_lookup[self.data.sender].remove(
-                withdraw_paramter.stake_id
-            )
-        with sp.else_():
-            self.data.stakes[
-                withdraw_paramter.stake_id
-            ].token_amount = remaining_inital_token_amount
-            self.data.stakes[withdraw_paramter.stake_id].stake = remaining_stake
 
     @sp.entry_point(check_no_incoming_transfer=True)
     def update_operators(self, update_operators):
@@ -475,7 +421,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         with sp.if_(~self.data.stakes.contains(stake_id)):
             sp.result(
                 Stake.make(
-                    token_amount=sp.nat(0),
+                    disc_factor=sp.nat(0),
                     stake=sp.nat(0),
                     age_timestamp=sp.timestamp(0),
                 )
