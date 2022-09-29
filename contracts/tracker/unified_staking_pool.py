@@ -132,6 +132,53 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
             )
             self.data.last_rewards = self.data.current_rewards
 
+    @sp.private_lambda(with_storage="read-write", with_operations=True, wrap_call=True)
+    def sub_claim(self, stake_id):
+        """sub entrypoint which claims the rewards for the sender stored in "sender". This means this can only be called by "internal_" entrypoints where
+        the sender is set correctly. This sub-claim also contains the logic of linear release. Based on the stake age a fraction of the reward is
+        released to the sender, the rest is redistributed among the other pool participants.
+        Args:
+            unit (sp.unit): nothing
+        """
+        sp.set_type(stake_id, sp.TNat)
+        stake = sp.local("stake", self.data.stakes[stake_id])
+        stake_age = sp.min(
+            sp.as_nat(sp.now - stake.value.age_timestamp),
+            self.data.max_release_period,
+        )
+
+        reward_token_amount = sp.local(
+            "reward_token_amount",
+            stake.value.stake
+            * sp.as_nat(self.data.disc_factor - stake.value.disc_factor)
+            // Constants.PRECISION_FACTOR,
+        )
+        timed_reward_token_amount = sp.local(
+            "timed_reward_token_amount",
+            reward_token_amount.value * stake_age // self.data.max_release_period,
+        )
+
+        Utils.execute_fa2_token_transfer(
+            self.data.reward_token.address,
+            sp.self_address,
+            sp.self_address,
+            self.data.reward_token.id,
+            sp.as_nat(reward_token_amount.value - timed_reward_token_amount.value),
+        )  # this self-transfer is just for indexing purposes and not required for functionality. It can be removed if gas matters.
+        Utils.execute_fa2_token_transfer(
+            self.data.reward_token.address,
+            sp.self_address,
+            self.data.sender,
+            self.data.reward_token.id,
+            timed_reward_token_amount.value,
+        )
+
+        self.data.last_rewards = sp.as_nat(
+            self.data.last_rewards - reward_token_amount.value
+        )
+        self.data.stakes[stake_id].disc_factor = self.data.disc_factor
+
+
     @sp.entry_point(check_no_incoming_transfer=True)
     def update_max_release_period(self, max_release_period):
         """Update the max release period for a stake. This entrypoint can only be called by an admin.
@@ -250,6 +297,35 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         self.data.total_stake += token_amount.value
 
     @sp.entry_point(check_no_incoming_transfer=True)
+    def claim(self, claim_paramter):
+        """external entrypoint for a user to claim her/his rewards. The actual logic is in internal_claim.
+        Post: storage.sender = sp.sender
+        Post: fetch_reward_balance()
+        Post: calls self.internal_claim
+        """
+        sp.set_type(
+            claim_paramter, sp.TRecord(stake_id=sp.TNat)
+        )
+        self.data.sender = sp.sender
+        self.fetch_reward_balance(sp.unit)
+        sp.transfer(claim_paramter, sp.mutez(0), sp.self_entry_point("internal_claim"))
+
+    @sp.entry_point(check_no_incoming_transfer=True)
+    def internal_claim(self, claim_paramter):
+        """internal entrypoint to claim a senders rewards.
+        Pre: verify_internal()
+        Post: sub_distribute()
+        Post: sub_claim()
+        """
+        sp.set_type(
+            claim_paramter, sp.TRecord(stake_id=sp.TNat)
+        )
+        self.verify_internal(sp.unit)
+        self.sub_update_factor(sp.unit)
+        self.sub_claim(claim_paramter.stake_id)
+
+
+    @sp.entry_point(check_no_incoming_transfer=True)
     def withdraw(self, withdraw_paramter):
         """ """
         sp.set_type(
@@ -277,7 +353,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
 
         self.verify_internal(sp.unit)
         self.sub_update_factor(sp.unit)
-        # self.sub_claim(sp.unit)
+        self.sub_claim(withdraw_paramter.stake_id)
 
         stake = sp.local("stake", self.data.stakes[withdraw_paramter.stake_id])
 
