@@ -1,0 +1,82 @@
+[
+  {
+    "index": 0,
+    "name": "set_admin"
+  },
+  {
+    "index": 1,
+    "name": "confirm_admin"
+  },
+  {
+    "index": 2,
+    "name": "set_fees"
+  },
+  {
+    "index": 3,
+    "name": "set_burner"
+  },
+  {
+    "index": 4,
+    "name": "set_baker_registry"
+  },
+  {
+    "index": 5,
+    "name": "set_is_v2_lp"
+  },
+  {
+    "index": 6,
+    "name": "set_reward_per_second"
+  },
+  {
+    "index": 7,
+    "name": "ban_bakers"
+  },
+  {
+    "index": 8,
+    "name": "add_new_farm"
+  },
+  {
+    "index": 9,
+    "name": "pause_farms"
+  },
+  {
+    "index": 10,
+    "name": "deposit"
+  },
+  {
+    "index": 11,
+    "name": "withdraw"
+  },
+  {
+    "index": 12,
+    "name": "harvest"
+  },
+  {
+    "index": 13,
+    "name": "burn_tez_rewards"
+  },
+  {
+    "index": 14,
+    "name": "claim_farm_rewards"
+  },
+  {
+    "index": 15,
+    "name": "withdraw_farm_depo"
+  },
+  {
+    "index": 16,
+    "name": "transfer"
+  },
+  {
+    "index": 17,
+    "name": "update_operators"
+  },
+  {
+    "index": 18,
+    "name": "balance_of"
+  },
+  {
+    "index": 19,
+    "name": "update_token_metadata"
+  }
+]

@@ -29,13 +29,15 @@ class DexVoteType:
         return sp.TRecord(
             pair_id=sp.TNat,
             candidate=sp.TKeyHash,
-        ).layout(("pair_id", "candidate"))
+            referral_code=sp.TOption(sp.TNat),
+        ).layout(("pair_id", ("candidate", "referral_code")))
 
-    def make(vote, amount):
+    def make(pair_id, candidate, referral_code):
         return sp.set_type_expr(
             sp.record(
                 pair_id=pair_id,
                 candidate=candidate,
+                referral_code=referral_code,
             ),
             DexVoteType.get_type(),
         )
@@ -47,11 +49,27 @@ class WithdrawBakerRewardType:
             pair_id=sp.TNat,
         ).layout(("receiver", "pair_id"))
 
-    def make(baker, amount):
+    def make(receiver, pair_id):
         return sp.set_type_expr(
             sp.record(
-                baker=baker,
-                amount=amount,
+                receiver=receiver,
+                pair_id=pair_id,
+            ),
+            WithdrawBakerRewardType.get_type(),
+        )
+
+class DexWithdrawBakerRewardType:
+    def get_type():
+        return sp.TRecord(
+            receiver=sp.TContract(),
+            pair_id=sp.TNat,
+        ).layout(("receiver", "pair_id"))
+
+    def make(receiver, pair_id):
+        return sp.set_type_expr(
+            sp.record(
+                receiver=receiver,
+                pair_id=pair_id,
             ),
             WithdrawBakerRewardType.get_type(),
         )
@@ -426,14 +444,14 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         dex_contract = sp.contract(
             DexVoteType.get_type(), self.data.deposit_token.address, entry_point="vote"
         ).open_some()
-    
+
         sp.transfer(params, sp.mutez(0), dex_contract)
 
     @sp.entry_point(check_no_incoming_transfer=True)
     def claim_baker_reward(self, params):
         """ """
         self.verify_is_admin()
-        
+
         sp.set_type(
             params,
             WithdrawBakerRewardType.get_type(),
