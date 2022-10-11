@@ -1,71 +1,257 @@
 import smartpy as sp
 
 import utils.constants as Constants
-from utils.fa2 import AdministrableFA2, RecipientTokenAmount, LedgerKey, Transfer
+import utils.fa2 as fa2
+from utils.administrable_mixin import AdministratorState
 
-from contracts.tracker.unified_staking_pool import (
-    UnifiedStakingPool
-)
+from contracts.tracker.long_staking_pool import LongStakingPool
+from contracts.tracker.unified_staking_pool import UnifiedStakingPool
 
-
-class DummyFA2(AdministrableFA2):
+class DummyFA2(fa2.AdministrableFA2):
     @sp.entry_point
     def mint(self, recipient_token_amount):
-        sp.set_type(recipient_token_amount, RecipientTokenAmount.get_type())
+        sp.set_type(recipient_token_amount, fa2.RecipientTokenAmount.get_type())
         with sp.if_(
             self.data.ledger.contains(
-                LedgerKey.make(
+                fa2.LedgerKey.make(
                     recipient_token_amount.token_id, recipient_token_amount.owner
                 )
             )
         ):
             self.data.ledger[
-                LedgerKey.make(
+                fa2.LedgerKey.make(
                     recipient_token_amount.token_id, recipient_token_amount.owner
                 )
             ] += recipient_token_amount.token_amount
         with sp.else_():
             self.data.ledger[
-                LedgerKey.make(
+                fa2.LedgerKey.make(
                     recipient_token_amount.token_id, recipient_token_amount.owner
                 )
             ] = recipient_token_amount.token_amount
 
-    @sp.entry_point
-    def burn(self, recipient_token_amount):
-        sp.set_type(recipient_token_amount, RecipientTokenAmount.get_type())
-        self.data.ledger[
-            LedgerKey.make(
-                recipient_token_amount.token_id, recipient_token_amount.owner
-            )
-        ] = sp.as_nat(
-            self.data.ledger[
-                LedgerKey.make(
-                    recipient_token_amount.token_id, recipient_token_amount.owner
-                )
-            ]
-            - recipient_token_amount.token_amount
-        )
 
-
-class DummyExchangeOracle(sp.Contract):
-    @sp.entry_point
-    def default(self):
-        pass
-
-    @sp.onchain_view()
-    def get_min_out(self, token_amount):
-        sp.set_type(token_amount, sp.TNat)
-        sp.result(token_amount)
-
-
-@sp.add_test(name="Unified Staking Pool")
-def test():
+@sp.add_test(name="Normal Staking Pool")
+def test_normal_staking_pool():
     scenario = sp.test_scenario()
-    scenario.h1("Unified Staking Pool Test")
+    scenario.h1("Staking Pool Unit Test")
     scenario.table_of_contents()
 
     scenario.h2("Bootstrapping")
+    token_id = sp.nat(0)
+
+    administrator = sp.test_account("Administrator")
+    alice = sp.test_account("Alice")
+    bob = sp.test_account("Robert")
+    charlie = sp.test_account("Charlie")
+    dan = sp.test_account("Dan")
+
+    reward_token = DummyFA2({fa2.LedgerKey.make(0, administrator.address): sp.unit})
+    staking_token = DummyFA2({fa2.LedgerKey.make(0, administrator.address): sp.unit})
+
+    scenario += reward_token
+    scenario += staking_token
+
+    scenario += reward_token.set_token_metadata(
+        sp.record(token_id=token_id, token_info=sp.map())
+    ).run(sender=administrator)
+
+    scenario += staking_token.set_token_metadata(
+        sp.record(token_id=token_id, token_info=sp.map())
+    ).run(sender=administrator)
+
+    scenario.h1("Long Staking with release of 0")
+    staking_pool = UnifiedStakingPool(sp.record(id=token_id, address=staking_token.address), True, sp.record(id=0, address=reward_token.address), 180 * 24 * 60 * 60, {administrator.address: 1})
+
+    scenario += staking_pool
+
+    scenario += staking_token.mint(
+        owner=alice.address,
+        token_id=token_id,
+        token_amount=10 * Constants.PRECISION_FACTOR,
+    )
+    scenario += staking_token.mint(
+        owner=bob.address,
+        token_id=token_id,
+        token_amount=10 * Constants.PRECISION_FACTOR,
+    )
+    scenario += staking_token.mint(
+        owner=charlie.address,
+        token_id=token_id,
+        token_amount=10 * Constants.PRECISION_FACTOR,
+    )
+    scenario += staking_token.mint(
+        owner=dan.address,
+        token_id=token_id,
+        token_amount=10 * Constants.PRECISION_FACTOR,
+    )
+    scenario += staking_token.update_operators(
+        [
+            sp.variant(
+                "add_operator",
+                sp.record(
+                    owner=alice.address,
+                    operator=staking_pool.address,
+                    token_id=token_id,
+                ),
+            )
+        ]
+    ).run(sender=alice.address)
+    scenario += staking_token.update_operators(
+        [
+            sp.variant(
+                "add_operator",
+                sp.record(
+                    owner=dan.address, operator=staking_pool.address, token_id=token_id
+                ),
+            )
+        ]
+    ).run(sender=dan.address)
+    scenario += staking_token.update_operators(
+        [
+            sp.variant(
+                "add_operator",
+                sp.record(
+                    owner=charlie.address,
+                    operator=staking_pool.address,
+                    token_id=token_id,
+                ),
+            )
+        ]
+    ).run(sender=charlie.address)
+    scenario += staking_token.update_operators(
+        [
+            sp.variant(
+                "add_operator",
+                sp.record(
+                    owner=bob.address, operator=staking_pool.address, token_id=token_id
+                ),
+            )
+        ]
+    ).run(sender=bob.address)
+    alice_ledger_key = fa2.LedgerKey.make(0, alice.address)
+    bob_ledger_key = fa2.LedgerKey.make(0, bob.address)
+    charlie_ledger_key = fa2.LedgerKey.make(0, charlie.address)
+    dan_ledger_key = fa2.LedgerKey.make(0, dan.address)
+
+    scenario.h2("Start staking")
+    now = sp.timestamp(0)
+    scenario += staking_pool.deposit(sp.record(token_amount=1 * Constants.PRECISION_FACTOR, stake_id=0)).run(
+        sender=alice, now=now
+    )
+
+    scenario.h2("Claim after a reward has been paid ")
+    now = now.add_seconds(sp.to_int(staking_pool.data.max_release_period))
+    reward_amount = 1 * Constants.PRECISION_FACTOR
+    alice_reward = reward_amount
+    bob_reward = 0
+    scenario.p("pay reward")
+    scenario += reward_token.mint(
+        owner=staking_pool.address, token_id=token_id, token_amount=reward_amount
+    )
+    scenario.p("alice claims as only user -> gets full reward")
+    scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alice_reward)
+    scenario.p("Multiclaim yields nothing")
+    scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alice_reward)
+
+    scenario.h2("Bob joins before a reward payout")
+    scenario += staking_pool.deposit(sp.record(token_amount=1 * Constants.PRECISION_FACTOR, stake_id=0)).run(
+        sender=bob, now=now
+    )
+    now = now.add_seconds(sp.to_int(staking_pool.data.max_release_period))
+    scenario.p("pay reward")
+    alice_reward += reward_amount // 2
+    bob_reward += reward_amount // 2
+    scenario += reward_token.mint(
+        owner=staking_pool.address, token_id=token_id, token_amount=reward_amount
+    )
+    scenario.p("both claim, both get same reward")
+    scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario += staking_pool.claim(sp.record(stake_id=2)).run(sender=bob, now=now)
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alice_reward)
+    scenario.verify_equal(reward_token.data.ledger[bob_ledger_key], bob_reward)
+
+    scenario.h2("Alice Increases Stake")
+    scenario += staking_pool.deposit(sp.record(token_amount=1 * Constants.PRECISION_FACTOR, stake_id=1)).run(
+        sender=alice, now=now
+    )
+    now = now.add_seconds(sp.to_int(staking_pool.data.max_release_period))
+    scenario.p("pay reward")
+    alice_reward += reward_amount * 2 // 3
+    bob_reward += reward_amount // 3
+    scenario += reward_token.mint(
+        owner=staking_pool.address, token_id=token_id, token_amount=reward_amount
+    )
+    scenario.p("both claim, alice gets 2/3 and bob 1/3")
+    scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario += staking_pool.claim(sp.record(stake_id=2)).run(sender=bob, now=now)
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alice_reward)
+    scenario.verify_equal(reward_token.data.ledger[bob_ledger_key], bob_reward)
+
+    scenario.h2("Fixed rewards randomly flies in")
+    scenario += reward_token.mint(
+        owner=staking_pool.address, token_id=token_id, token_amount=reward_amount
+    ).run(now=now)
+    alice_reward += reward_amount * 2 // 3
+    bob_reward += reward_amount // 3
+    dan_reward = 0
+
+    scenario.p("Dan joins late (not ellegible for fixed reward")
+    now = now.add_seconds(sp.to_int(staking_pool.data.max_release_period))
+    scenario += staking_pool.deposit(sp.record(token_amount=1 * Constants.PRECISION_FACTOR, stake_id=0)).run(
+        sender=dan, now=now
+    )
+
+    scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario += staking_pool.claim(sp.record(stake_id=2)).run(sender=bob, now=now)
+    scenario += staking_pool.claim(sp.record(stake_id=3)).run(sender=dan, now=now)
+
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alice_reward)
+    scenario.verify_equal(reward_token.data.ledger[bob_ledger_key], bob_reward)
+
+    scenario.h2("Dan leaves after reward")
+    scenario += reward_token.mint(
+        owner=staking_pool.address, token_id=token_id, token_amount=reward_amount
+    ).run(now=now)
+
+    alice_reward += reward_amount * 2 // 4
+    bob_reward += reward_amount // 4
+    dan_reward += reward_amount // 4
+
+    now = now.add_seconds(sp.to_int(staking_pool.data.max_release_period))
+    scenario += staking_pool.withdraw(sp.record(stake_id=3)).run(sender=dan, now=now)
+
+    scenario.p("Dan Rejoins (after a new reward)")
+    scenario += reward_token.mint(
+        owner=staking_pool.address, token_id=token_id, token_amount=reward_amount
+    ).run(now=now)
+    now = now.add_seconds(sp.to_int(staking_pool.data.max_release_period))
+
+    alice_reward += reward_amount * 2 // 3
+    bob_reward += reward_amount // 3
+
+    scenario += staking_pool.deposit(sp.record(token_amount=1 * Constants.PRECISION_FACTOR, stake_id=0)).run(
+        sender=dan, now=now
+    )
+    scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario += staking_pool.claim(sp.record(stake_id=2)).run(sender=bob, now=now)
+    scenario += staking_pool.claim(sp.record(stake_id=4)).run(sender=dan, now=now)
+
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alice_reward)
+    scenario.verify_equal(reward_token.data.ledger[bob_ledger_key], bob_reward)
+    scenario.verify_equal(reward_token.data.ledger[dan_ledger_key], dan_reward)
+
+
+@sp.add_test(name="Vesting Staking Pool")
+def test_vesting_incentive():
+    scenario = sp.test_scenario()
+    scenario.h1("Staking Pool Unit Test")
+    scenario.table_of_contents()
+
+    scenario.h2("Bootstrapping")
+    token_id = sp.nat(0)
 
     administrator = sp.test_account("Administrator")
     alice = sp.test_account("Alice")
@@ -74,257 +260,47 @@ def test():
 
     scenario.show([administrator, alice, bob, dan])
 
-    token_id = sp.nat(0)
-    staking_token = DummyFA2({LedgerKey.make(token_id, administrator.address): sp.unit})
-    reward_token = DummyFA2({LedgerKey.make(token_id, administrator.address): sp.unit})
-    scenario += staking_token
+    reward_token = DummyFA2({fa2.LedgerKey.make(0, administrator.address): sp.unit})
+    staking_token = DummyFA2({fa2.LedgerKey.make(0, administrator.address): sp.unit})
+
     scenario += reward_token
+    scenario += staking_token
+
     scenario += reward_token.set_token_metadata(
-        token_id=token_id, token_info=sp.map()
+        sp.record(token_id=token_id, token_info=sp.map())
     ).run(sender=administrator)
 
     scenario += staking_token.set_token_metadata(
-        token_id=token_id, token_info=sp.map()
+        sp.record(token_id=token_id, token_info=sp.map())
     ).run(sender=administrator)
 
-    staking_token_key = LedgerKey.make(0, staking_token.address)
-                    
-    unified_staking_pool = UnifiedStakingPool(
-        sp.record(id=token_id, address=staking_token.address), True, sp.record(id=token_id, address=reward_token.address), 100, {administrator.address: 1}
-    )
-    scenario += unified_staking_pool
+    scenario.h1("Long Staking with release of 0")
+    staking_pool = staking_pool = UnifiedStakingPool(sp.record(id=token_id, address=staking_token.address), True, sp.record(id=0, address=reward_token.address), 180 * 24 * 60 * 60, {administrator.address: 1})
 
-    initial_balance = 1000 * Constants.PRECISION_FACTOR
+    scenario += staking_pool
 
     scenario += staking_token.mint(
-        owner=alice.address, token_id=token_id, token_amount=initial_balance
-    )
-    scenario += staking_token.mint(
-        owner=bob.address, token_id=token_id, token_amount=initial_balance
-    )
-    scenario += staking_token.mint(
-        owner=dan.address, token_id=token_id, token_amount=initial_balance
-    )
-    scenario += staking_token.update_operators(
-        [
-            sp.variant(
-                "add_operator",
-                sp.record(
-                    owner=alice.address,
-                    operator=unified_staking_pool.address,
-                    token_id=token_id,
-                ),
-            )
-        ]
-    ).run(sender=alice.address)
-    scenario += staking_token.update_operators(
-        [
-            sp.variant(
-                "add_operator",
-                sp.record(
-                    owner=dan.address,
-                    operator=unified_staking_pool.address,
-                    token_id=token_id,
-                ),
-            )
-        ]
-    ).run(sender=dan.address)
-    scenario += staking_token.update_operators(
-        [
-            sp.variant(
-                "add_operator",
-                sp.record(
-                    owner=bob.address,
-                    operator=unified_staking_pool.address,
-                    token_id=token_id,
-                ),
-            )
-        ]
-    ).run(sender=bob.address)
-
-    alice_ledger_key = LedgerKey.make(0, alice.address)
-    bob_ledger_key = LedgerKey.make(0, bob.address)
-    dan_ledger_key = LedgerKey.make(0, dan.address)
-    unified_staking_pool_key = LedgerKey.make(0, unified_staking_pool.address)
-
-    scenario.h2("Single User Flows")
-    now = sp.timestamp(0)
-    scenario.p("Alice stakes 1 token")
-    alices_stake = 1 * Constants.PRECISION_FACTOR
-    alices_balance = initial_balance
-    alices_reward = 0
-
-    scenario += unified_staking_pool.deposit(
-        sp.record(token_amount=alices_stake, stake_id=0)
-    ).run(sender=alice.address, now=now)
-    scenario.p("Alice withdraws what she put in")
-    scenario += unified_staking_pool.withdraw(
-        sp.record(stake_id=1)
-    ).run(sender=alice.address, now=now)
-    scenario.verify_equal(staking_token.data.ledger[alice_ledger_key], alices_balance)
-
-    scenario.p("Alice stakes 1 token")
-
-    reward_payout = 1 * Constants.PRECISION_FACTOR
-    total_reward = reward_payout
-    scenario += unified_staking_pool.deposit(
-        sp.record(token_amount=alices_stake, stake_id=0)
-    ).run(sender=alice.address, now=now)
-    scenario += reward_token.mint(
-        owner=unified_staking_pool.address,
-        token_id=token_id,
-        token_amount=reward_payout,
-    )
-
-    scenario.p("Alice withdraws what she put in after reward")
-    scenario += unified_staking_pool.withdraw(
-        sp.record(stake_id=2)
-    ).run(sender=alice.address, now=now)
-    scenario.verify_equal(staking_token.data.ledger[alice_ledger_key], alices_balance)
-    scenario.verify_equal(
-        reward_token.data.ledger[unified_staking_pool_key], reward_payout
-    )
-
-    scenario.p("Alice stakes 1 token")
-    scenario += unified_staking_pool.deposit(
-        sp.record(token_amount=alices_stake, stake_id=0)
-    ).run(sender=alice.address, now=now)
-    scenario += reward_token.mint(
-        owner=unified_staking_pool.address,
-        token_id=token_id,
-        token_amount=reward_payout,
-    )
-
-    scenario.p("Alice withdraws what she put in after reward after 1/10 of the time")
-    now = now.add_seconds(10)
-    total_reward += reward_payout
-    alices_reward += total_reward // 10
-  
-    scenario += unified_staking_pool.withdraw(
-        sp.record(stake_id=3)
-    ).run(sender=alice.address, now=now)
-    scenario.verify_equal(staking_token.data.ledger[alice_ledger_key], alices_balance)
-    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alices_reward)
-    scenario.verify_equal(
-        reward_token.data.ledger[unified_staking_pool_key], total_reward * 9 // 10
-    )
-
-    scenario.p("Alice stakes 1 token")
-    scenario += unified_staking_pool.deposit(
-        sp.record(token_amount=alices_stake, stake_id=0)
-    ).run(sender=alice.address, now=now)
-    scenario += reward_token.mint(
-        owner=unified_staking_pool.address,
-        token_id=token_id,
-        token_amount=reward_payout,
-    )
-
-    scenario.p(
-        "Alice withdraws what she put in after reward after 10/10 of the time, get full rewards"
-    )
-    now = now.add_seconds(100)
-    total_reward = total_reward * 9 // 10 + reward_payout
-    alices_reward += total_reward
-   
-    scenario += unified_staking_pool.withdraw(
-        sp.record(stake_id=4)
-    ).run(sender=alice.address, now=now)
-
-    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alices_reward)
-
-    scenario.p("Alice stakes 1 token")
-    scenario += unified_staking_pool.deposit(
-        sp.record(token_amount=alices_stake, stake_id=0)
-    ).run(sender=alice.address, now=now)
-    scenario += reward_token.mint(
-        owner=unified_staking_pool.address,
-        token_id=token_id,
-        token_amount=reward_payout,
-    )
-
-    scenario.p("Alice withdraws half-time half of her stake")
-    now = now.add_seconds(50)
-    total_reward = reward_payout
-
-    alices_reward += total_reward // 2
-    remaining_reward = total_reward // 2
-
-    scenario += unified_staking_pool.withdraw(
-        sp.record(stake_id=5)
-    ).run(sender=alice.address, now=now)
-
-    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alices_reward)
-    scenario.verify_equal(staking_token.data.ledger[alice_ledger_key], alices_balance)
-    scenario.verify_equal(
-        reward_token.data.ledger[unified_staking_pool_key], remaining_reward
-    )
-
-    scenario += reward_token.burn(
-        owner=unified_staking_pool.address,
-        token_id=token_id,
-        token_amount=reward_token.data.ledger[unified_staking_pool_key],
-    )
-    scenario.p("Alice stakes 1 token")
-    scenario += unified_staking_pool.deposit(
-        sp.record(token_amount=alices_stake, stake_id=0)
-    ).run(sender=alice.address, now=now)
-    scenario += reward_token.mint(
-        owner=unified_staking_pool.address,
-        token_id=token_id,
-        token_amount=reward_payout,
-    )
-
-    scenario.p(
-        "Alice adds 1 token to stake after half time, after reward her stake is currently 2:1"
-    )
-    now = now.add_seconds(50)
-    scenario += unified_staking_pool.deposit(
-        sp.record(token_amount=alices_stake, stake_id=6)
-    ).run(sender=alice.address, now=now)
-    scenario += reward_token.mint(
-        owner=unified_staking_pool.address,
-        token_id=token_id,
-        token_amount=reward_payout,
-    )
-    scenario += reward_token.burn(
         owner=alice.address,
         token_id=token_id,
-        token_amount=reward_token.data.ledger[alice_ledger_key],
+        token_amount=10 * Constants.PRECISION_FACTOR,
     )
-
-    scenario.p("Alice withdraws full after half time of the second deposit")
-    now = now.add_seconds(50)
-    total_reward = 2 * reward_payout
-    # when alice deposits the second time, her stake has grown to 2x, this means we have 1x age of 0 and 2x age of 50 == an age of 33 days. Add the 50 days to that we end up at the 83 days used below.
-    alices_reward = total_reward * 3 // 4
-    remaining_reward = total_reward - alices_reward
-    scenario += unified_staking_pool.withdraw(
-        sp.record(stake_id=6)
-    ).run(sender=alice.address, now=now)
-    
-    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alices_reward)
-    scenario.verify_equal(
-        reward_token.data.ledger[unified_staking_pool_key], remaining_reward
+    scenario += staking_token.mint(
+        owner=bob.address,
+        token_id=token_id,
+        token_amount=10 * Constants.PRECISION_FACTOR,
     )
-
-    scenario.h2("Multi User Flows")
-    scenario.p("create a new staking pool")
-    now = sp.timestamp(0)
-    bobs_stake = 1 * Constants.PRECISION_FACTOR
-    bobs_balance = initial_balance
-
-    unified_staking_pool = UnifiedStakingPool(
-        sp.record(id=token_id, address=staking_token.address), True, sp.record(id=token_id, address=reward_token.address), 100, {administrator.address: 1}
+    scenario += staking_token.mint(
+        owner=dan.address,
+        token_id=token_id,
+        token_amount=10 * Constants.PRECISION_FACTOR,
     )
-    scenario += unified_staking_pool
-    unified_staking_pool_key = LedgerKey.make(0, unified_staking_pool.address)
     scenario += staking_token.update_operators(
         [
             sp.variant(
                 "add_operator",
                 sp.record(
                     owner=alice.address,
-                    operator=unified_staking_pool.address,
+                    operator=staking_pool.address,
                     token_id=token_id,
                 ),
             )
@@ -335,9 +311,7 @@ def test():
             sp.variant(
                 "add_operator",
                 sp.record(
-                    owner=dan.address,
-                    operator=unified_staking_pool.address,
-                    token_id=token_id,
+                    owner=dan.address, operator=staking_pool.address, token_id=token_id
                 ),
             )
         ]
@@ -347,496 +321,167 @@ def test():
             sp.variant(
                 "add_operator",
                 sp.record(
-                    owner=bob.address,
-                    operator=unified_staking_pool.address,
-                    token_id=token_id,
+                    owner=bob.address, operator=staking_pool.address, token_id=token_id
                 ),
             )
         ]
     ).run(sender=bob.address)
+    alice_ledger_key = fa2.LedgerKey.make(0, alice.address)
+    bob_ledger_key = fa2.LedgerKey.make(0, bob.address)
+    dan_ledger_key = fa2.LedgerKey.make(0, dan.address)
 
-    scenario.p("Alice stakes 1 token")
-    scenario += unified_staking_pool.deposit(
-        sp.record(token_amount=alices_stake, stake_id=0)
-    ).run(sender=alice.address, now=now)
-    scenario.p("Reward is paid")
-    scenario += reward_token.mint(
-        owner=unified_staking_pool.address,
-        token_id=token_id,
-        token_amount=reward_payout,
+    scenario.h2("Start staking")
+    now = sp.timestamp(0)
+    scenario += staking_pool.deposit(sp.record(token_amount=1 * Constants.PRECISION_FACTOR, stake_id=0)).run(
+        sender=alice, now=now
     )
-    scenario.p("Bob stakes 1 token")
-    scenario += unified_staking_pool.deposit(
-        sp.record(token_amount=bobs_stake, stake_id=0)
-    ).run(sender=bob.address, now=now)
-    scenario.p("Reward is paid")
+
+    scenario.h2("Claim after a reward has been paid ")
+    now = now.add_seconds(sp.to_int(staking_pool.data.max_release_period // 2))
+    reward_amount = 1 * Constants.PRECISION_FACTOR
+    alice_reward = reward_amount // 2
+    bob_reward = 0
+    scenario.p("pay reward")
     scenario += reward_token.mint(
-        owner=unified_staking_pool.address,
-        token_id=token_id,
-        token_amount=reward_payout,
+        owner=staking_pool.address, token_id=token_id, token_amount=reward_amount
     )
-    now = now.add_seconds(50)
-    scenario.p("Bob exits after half time")
+    scenario.p("alice claims as only user -> gets full reward")
+    scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alice_reward)
+    scenario.p("Multiclaim yields the re-distributed rewards")
+    alice_reward += (reward_amount - alice_reward) // 2
+    scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alice_reward)
 
-    scenario += unified_staking_pool.withdraw(
-        sp.record(stake_id=2)
-    ).run(sender=bob.address, now=now)
-
-    #CHECK
-    bobs_reward = reward_payout // 4
-
-    scenario.verify_equal(staking_token.data.ledger[bob_ledger_key], bobs_balance)
-    scenario.verify_equal(reward_token.data.ledger[bob_ledger_key], bobs_reward)
-    scenario.p("Bob enters again after 50")
-    now = now.add_seconds(50)
-    scenario += unified_staking_pool.deposit(
-        sp.record(token_amount=bobs_stake, stake_id=0)
-    ).run(sender=bob.address, now=now)
-    scenario.p("Reward is paid")
+    scenario.h2("Bob joins before a reward payout")
+    scenario += staking_pool.deposit(sp.record(token_amount=1 * Constants.PRECISION_FACTOR, stake_id=0)).run(
+        sender=bob, now=now
+    )
+    now = now.add_seconds(sp.to_int(staking_pool.data.max_release_period // 2))
+    scenario.p("pay reward")
+    alice_reward += reward_amount // 2 + reward_amount // 4
+    bob_reward += reward_amount // 4
     scenario += reward_token.mint(
-        owner=unified_staking_pool.address,
-        token_id=token_id,
-        token_amount=reward_payout,
+        owner=staking_pool.address, token_id=token_id, token_amount=reward_amount
     )
-    now = now.add_seconds(50)
-    scenario.p("Bob increases stake")
-    scenario += unified_staking_pool.deposit(
-        sp.record(token_amount=bobs_stake, stake_id=3)
-    ).run(sender=bob.address, now=now)
+    scenario.p("both claim, both get same reward")
+    scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario += staking_pool.claim(sp.record(stake_id=2)).run(sender=bob, now=now)
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alice_reward)
+    scenario.verify_equal(reward_token.data.ledger[bob_ledger_key], bob_reward)
+
+    scenario.h2("Alice Increases Stake")
+    scenario += staking_pool.deposit(sp.record(token_amount=1 * Constants.PRECISION_FACTOR, stake_id=1)).run(
+        sender=alice, now=now
+    )
+    now = now.add_seconds(sp.to_int(staking_pool.data.max_release_period // 2))
+    scenario.p("pay reward")
+    alice_reward += (
+        reward_amount * 2 // 3 + reward_amount // 4 // 2
+    )  # time weighted own + bob's redistribution
+    bob_reward += reward_amount // 3 + reward_amount // 4 // 2
     scenario += reward_token.mint(
-        owner=unified_staking_pool.address,
-        token_id=token_id,
-        token_amount=reward_payout,
+        owner=staking_pool.address, token_id=token_id, token_amount=reward_amount
     )
-    scenario.p("Bob exits half after half time")
-    now = now.add_seconds(50)
-    scenario.show(reward_token.data.ledger[bob_ledger_key])
-    scenario += unified_staking_pool.withdraw(
-        sp.record(stake_id=3)
-    ).run(sender=bob.address, now=now)
-    bobs_reward += reward_payout
-    bobs_balance += (
-        reward_payout * 6 * 77 // 23 // 100 // 2
-    )  # alice has 2 + 5//6 weight to start -> 17//6 in total its 23//6 bob makes 6//6 of these. The rewards are then time adapted to: 77/100
-    bobs_balance += (
-        reward_payout * 312 * 77 // 805 // 100 // 2
-    )  # after 50 alice has 17//6 + 17//23 == 493/138 and bob 1 + 6//23 + 1 == 52//23 ==> the total is 35//6. The rewards are then time adapted to:
-    
-    bobs_balance -= (
-        bobs_stake + 4
-    )  # one stake stays because only half is withdrawn, 4 is inacuracy.
-    print(bobs_reward)
-    scenario.show(reward_token.data.ledger[bob_ledger_key])
-    scenario.verify_equal(reward_token.data.ledger[bob_ledger_key], bobs_reward)
-   
-    # scenario.p("Bob exits second half when time is up")
-    # now = now.add_seconds(50)
-    # scenario += unified_staking_pool.withdraw(
-    #     sp.record(stake_id=3)
-    # ).run(sender=bob.address, now=now)
-    # scenario.p("Alice exits when time is up")
-    # scenario += unified_staking_pool.withdraw(
-    #     sp.record(stake_id=1)
-    # ).run(sender=alice.address, now=now)
-    # scenario.verify_equal(
-    #     staking_token.data.ledger[unified_staking_pool_key], 9
-    # )  # 9 is a rest...
+    scenario.p("both claim, alice gets 2/3 and bob 1/3")
+    scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario += staking_pool.claim(sp.record(stake_id=2)).run(sender=bob, now=now)
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alice_reward)
+    scenario.verify_equal(reward_token.data.ledger[bob_ledger_key], bob_reward)
 
-    # scenario.h2("Withdrawal Smurfing")
-    # scenario.p("create a new staking pool")
-    # now = sp.timestamp(0)
-    # dans_stake = 1 * Constants.PRECISION_FACTOR
-    # dans_balance = initial_balance
+    scenario.h2("Fixed rewards randomly flies in")
+    scenario += reward_token.mint(
+        owner=staking_pool.address, token_id=token_id, token_amount=reward_amount
+    ).run(now=now)
+    alice_reward += reward_amount * 2 // 3
+    bob_reward += reward_amount // 3
+    dan_reward = 0
 
-    # unified_staking_pool = UnifiedStakingPool(
-    #     sp.record(id=token_id, address=staking_token.address), True, sp.record(id=token_id, address=reward_token.address), 100, {administrator.address: 1}
-    # )
-    # scenario += unified_staking_pool
-    # unified_staking_pool_key = LedgerKey.make(0, unified_staking_pool.address)
-    # scenario += staking_token.update_operators(
-    #     [
-    #         sp.variant(
-    #             "add_operator",
-    #             sp.record(
-    #                 owner=alice.address,
-    #                 operator=unified_staking_pool.address,
-    #                 token_id=token_id,
-    #             ),
-    #         )
-    #     ]
-    # ).run(sender=alice.address)
-    # scenario += staking_token.update_operators(
-    #     [
-    #         sp.variant(
-    #             "add_operator",
-    #             sp.record(
-    #                 owner=dan.address,
-    #                 operator=unified_staking_pool.address,
-    #                 token_id=token_id,
-    #             ),
-    #         )
-    #     ]
-    # ).run(sender=dan.address)
-    # scenario += staking_token.update_operators(
-    #     [
-    #         sp.variant(
-    #             "add_operator",
-    #             sp.record(
-    #                 owner=bob.address,
-    #                 operator=unified_staking_pool.address,
-    #                 token_id=token_id,
-    #             ),
-    #         )
-    #     ]
-    # ).run(sender=bob.address)
+    scenario.p("Dan joins late (not ellegible for fixed reward")
+    now = now.add_seconds(sp.to_int(staking_pool.data.max_release_period // 2))
+    scenario += staking_pool.deposit(sp.record(token_amount=1 * Constants.PRECISION_FACTOR, stake_id=0)).run(
+        sender=dan, now=now
+    )
 
-    # scenario += unified_staking_pool.deposit(
-    #     sp.record(token_amount=bobs_stake, stake_id=0)
-    # ).run(sender=bob.address, now=now)
-    # scenario += unified_staking_pool.deposit(
-    #     sp.record(token_amount=dans_stake, stake_id=0)
-    # ).run(sender=dan.address, now=now)
-    # scenario += staking_token.mint(
-    #     owner=unified_staking_pool.address,
-    #     token_id=token_id,
-    #     token_amount=reward_payout,
-    # )
-    # now = now.add_seconds(100)
-    # for i in range(10):
-    #     scenario += unified_staking_pool.withdraw(
-    #         sp.record(stake_id=2)
-    #     ).run(sender=dan.address, now=now)
-    # scenario += unified_staking_pool.withdraw(
-    #     sp.record(stake_id=2)
-    # ).run(sender=dan.address, now=now)
-    # dans_balance += reward_payout // 2
-    # scenario.verify_equal(staking_token.data.ledger[dan_ledger_key], dans_balance)
-    # scenario += unified_staking_pool.deposit(
-    #     sp.record(token_amount=bobs_stake, stake_id=0)
-    # ).run(sender=alice.address, now=now)
+    scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario += staking_pool.claim(sp.record(stake_id=2)).run(sender=bob, now=now)
+    scenario += staking_pool.claim(sp.record(stake_id=3)).run(sender=dan, now=now)
 
-    # scenario.h2("Not allowed cases")
-    # scenario.p("cannot deposit in non-existing stake_id")
-    # scenario += unified_staking_pool.deposit(
-    #     sp.record(token_amount=bobs_stake, stake_id=10)
-    # ).run(sender=bob.address, now=now, valid=False)
-    # scenario.p("cannot deposit in not-own stake_id")
-    # scenario += unified_staking_pool.deposit(
-    #     sp.record(token_amount=bobs_stake, stake_id=3)
-    # ).run(sender=bob.address, now=now, valid=False)
-    # scenario.p("can only deposit in own stake_id")
-    # scenario += unified_staking_pool.deposit(
-    #     sp.record(token_amount=bobs_stake, stake_id=1)
-    # ).run(sender=bob.address, now=now, valid=True)
-    # scenario += unified_staking_pool.deposit(
-    #     sp.record(token_amount=bobs_stake, stake_id=3)
-    # ).run(sender=alice.address, now=now, valid=True)
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alice_reward)
+    scenario.verify_equal(reward_token.data.ledger[bob_ledger_key], bob_reward)
 
-    # scenario.p("cannot withdraw in non-existing stake_id")
-    # scenario += unified_staking_pool.withdraw(
-    #     sp.record(stake_id=10)
-    # ).run(sender=bob.address, now=now, valid=False)
-    # scenario.p("cannot deposit in not-own stake_id")
-    # scenario += unified_staking_pool.withdraw(
-    #     sp.record(stake_id=3)
-    # ).run(sender=bob.address, now=now, valid=False)
-    # scenario.p("can only withdraw in own stake_id")
-    # scenario += unified_staking_pool.withdraw(
-    #     sp.record(stake_id=1)
-    # ).run(sender=bob.address, now=now, valid=True)
-    # scenario += unified_staking_pool.withdraw(
-    #     sp.record(stake_id=3)
-    # ).run(sender=alice.address, now=now, valid=True)
+    scenario.h2("Dan leaves after reward")
+    scenario += reward_token.mint(
+        owner=staking_pool.address, token_id=token_id, token_amount=reward_amount
+    ).run(now=now)
 
-    # scenario.p("cannot withdraw with ration >1")
-    # scenario += unified_staking_pool.withdraw(
-    #     sp.record(stake_id=1)
-    # ).run(sender=bob.address, now=now, valid=False)
-    # scenario.p("can withdraw with ration ==1")
-    # scenario += unified_staking_pool.withdraw(
-    #     sp.record(stake_id=1)
-    # ).run(sender=bob.address, now=now, valid=True)
+    alice_reward += reward_amount * 2 // 4
+    bob_reward += reward_amount // 4
+    dan_reward += reward_amount // 4 // 2
 
-    # scenario.h2("Testing the transfer of stake")
-    # scenario.p("cannot transfer someone elses stake")
-    # scenario += unified_staking_pool.transfer(
-    #     [
-    #         Transfer.item(
-    #             alice.address, [sp.record(to_=bob.address, token_id=3, amount=1)]
-    #         )
-    #     ]
-    # ).run(sender=bob.address, now=now, valid=False)
-    # scenario.p("cannot transfer not existing stake")
-    # scenario += unified_staking_pool.transfer(
-    #     [
-    #         Transfer.item(
-    #             alice.address, [sp.record(to_=bob.address, token_id=30, amount=1)]
-    #         )
-    #     ]
-    # ).run(sender=bob.address, now=now, valid=False)
-    # scenario.p("cannot transfer zero")
-    # scenario += unified_staking_pool.transfer(
-    #     [
-    #         Transfer.item(
-    #             alice.address, [sp.record(to_=bob.address, token_id=3, amount=0)]
-    #         )
-    #     ]
-    # ).run(sender=alice.address, now=now, valid=False)
-    # scenario.p("cannot transfer more than 1")
-    # scenario += unified_staking_pool.transfer(
-    #     [
-    #         Transfer.item(
-    #             alice.address, [sp.record(to_=bob.address, token_id=3, amount=2)]
-    #         )
-    #     ]
-    # ).run(sender=alice.address, now=now, valid=False)
-    # scenario.p("can transfer to self")
-    # scenario += unified_staking_pool.transfer(
-    #     [
-    #         Transfer.item(
-    #             alice.address, [sp.record(to_=alice.address, token_id=3, amount=1)]
-    #         )
-    #     ]
-    # ).run(sender=alice.address, now=now, valid=True)
-    # scenario.p("can transfer own")
-    # scenario += unified_staking_pool.transfer(
-    #     [
-    #         Transfer.item(
-    #             alice.address, [sp.record(to_=bob.address, token_id=3, amount=1)]
-    #         )
-    #     ]
-    # ).run(sender=alice.address, now=now, valid=True)
+    now = now.add_seconds(sp.to_int(staking_pool.data.max_release_period // 2))
+    scenario += staking_pool.withdraw(sp.record(stake_id=3)).run(sender=dan, now=now)
 
-    # scenario.h2("Testing the operators")
-    # scenario.p("alice cannot transfer not owned")
-    # scenario += unified_staking_pool.transfer(
-    #     [
-    #         Transfer.item(
-    #             alice.address, [sp.record(to_=alice.address, token_id=3, amount=1)]
-    #         )
-    #     ]
-    # ).run(sender=alice.address, now=now, valid=False)
-    # scenario.p("cannot add operators of not owned")
-    # scenario += unified_staking_pool.update_operators(
-    #     [
-    #         sp.variant(
-    #             "add_operator",
-    #             sp.record(owner=bob.address, operator=bob.address, token_id=3),
-    #         )
-    #     ]
-    # ).run(sender=alice.address, valid=False)
-    # scenario.p("can add operators when owned")
-    # scenario += unified_staking_pool.update_operators(
-    #     [
-    #         sp.variant(
-    #             "add_operator",
-    #             sp.record(owner=bob.address, operator=alice.address, token_id=3),
-    #         )
-    #     ]
-    # ).run(sender=bob.address, valid=True)
-    # scenario.p("cannot delete operator if not owner")
-    # scenario += unified_staking_pool.update_operators(
-    #     [
-    #         sp.variant(
-    #             "remove_operator",
-    #             sp.record(owner=bob.address, operator=alice.address, token_id=3),
-    #         )
-    #     ]
-    # ).run(sender=alice.address, valid=False)
-    # scenario.p("now alice can transfer on bobs behalf (self transfer)")
-    # scenario += unified_staking_pool.transfer(
-    #     [Transfer.item(bob.address, [sp.record(to_=bob.address, token_id=3, amount=1)])]
-    # ).run(sender=alice.address, now=now, valid=True)
-    # scenario.p("can delete operator if owner")
-    # scenario += unified_staking_pool.update_operators(
-    #     [
-    #         sp.variant(
-    #             "remove_operator",
-    #             sp.record(owner=bob.address, operator=alice.address, token_id=3),
-    #         )
-    #     ]
-    # ).run(sender=bob.address, valid=True)
-    # scenario.p("after delete cannot transfer")
-    # scenario += unified_staking_pool.transfer(
-    #     [
-    #         Transfer.item(
-    #             bob.address, [sp.record(to_=alice.address, token_id=3, amount=1)]
-    #         )
-    #     ]
-    # ).run(sender=alice.address, now=now, valid=False)
-    # scenario.p("now alice can transfer on bobs behalf (after readding)")
-    # scenario += unified_staking_pool.update_operators(
-    #     [
-    #         sp.variant(
-    #             "add_operator",
-    #             sp.record(owner=bob.address, operator=alice.address, token_id=3),
-    #         )
-    #     ]
-    # ).run(sender=bob.address, valid=True)
-    # scenario += unified_staking_pool.transfer(
-    #     [
-    #         Transfer.item(
-    #             bob.address, [sp.record(to_=alice.address, token_id=3, amount=1)]
-    #         )
-    #     ]
-    # ).run(sender=alice.address, now=now, valid=True)
-    # scenario.p("cannot reclaim power")
-    # scenario += unified_staking_pool.update_operators(
-    #     [
-    #         sp.variant(
-    #             "add_operator",
-    #             sp.record(owner=alice.address, operator=bob.address, token_id=3),
-    #         )
-    #     ]
-    # ).run(sender=bob.address, valid=False)
-    # scenario += unified_staking_pool.transfer(
-    #     [
-    #         Transfer.item(
-    #             alice.address, [sp.record(to_=bob.address, token_id=3, amount=1)]
-    #         )
-    #     ]
-    # ).run(sender=bob.address, now=now, valid=False)
+    scenario.p("Dan Rejoins (after a new reward)")
+    scenario += reward_token.mint(
+        owner=staking_pool.address, token_id=token_id, token_amount=reward_amount
+    ).run(now=now)
+    now = now.add_seconds(sp.to_int(staking_pool.data.max_release_period // 2))
 
-    # scenario.h2("Exchange functions")
-    # scenario.p("bootstrapping")
-    # exchange_oracle = DummyExchangeOracle()
-    # scenario += exchange_oracle
-    # scenario.verify(exchange_oracle.get_min_out(2) == 2)
+    alice_reward += reward_amount * 2 // 3 + reward_amount * 2 // 4 // 2 // 3 + 1
+    bob_reward += (
+        reward_amount // 3 + reward_amount // 4 // 2 // 3 + 1
+    )  # the +1 is because we have double truncated division
 
-    # exchange_token = DummyFA2(
-    #     {LedgerKey.make(token_id, administrator.address): sp.unit}
-    # )
-    # scenario += exchange_token
-    # scenario += exchange_token.set_token_metadata(
-    #     token_id=token_id, token_info=sp.map()
-    # ).run(sender=administrator)
-    # scenario += exchange_token.mint(
-    #     owner=unified_staking_pool.address,
-    #     token_id=token_id,
-    #     token_amount=initial_balance,
-    # )
-    # exchange_token_key = LedgerKey.make(0, exchange_token.address)
+    scenario += staking_pool.deposit(sp.record(token_amount=1 * Constants.PRECISION_FACTOR, stake_id=0)).run(
+        sender=dan, now=now
+    )
+    scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario += staking_pool.claim(sp.record(stake_id=2)).run(sender=bob, now=now)
+    scenario += staking_pool.claim(sp.record(stake_id=4)).run(sender=dan, now=now)
 
-    # def execute_fa2_token_transfer(token_address, to_, token_id, amount):
-    #     transfer_token_contract = sp.contract(
-    #         Transfer.get_batch_type(), token_address, entry_point="transfer"
-    #     ).open_some()
-    #     transfer_payload = [
-    #         Transfer.item(
-    #             sp.self_address, [sp.record(to_=to_, token_id=token_id, amount=amount)]
-    #         )
-    #     ]
-    #     return sp.transfer_operation(
-    #         transfer_payload, sp.mutez(0), transfer_token_contract
-    #     )
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alice_reward)
+    scenario.verify_equal(reward_token.data.ledger[bob_ledger_key], bob_reward)
+    scenario.verify_equal(reward_token.data.ledger[dan_ledger_key], dan_reward)
+    now = now.add_seconds(sp.to_int(staking_pool.data.max_release_period // 2))
+    scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario += staking_pool.claim(sp.record(stake_id=2)).run(sender=bob, now=now)
 
-    # def execute_mint(token_address, owner, token_id, amount):
-    #     token_contract = sp.contract(
-    #         RecipientTokenAmount.get_type(), token_address, entry_point="mint"
-    #     ).open_some()
-    #     payload = RecipientTokenAmount.make(owner, token_id, amount)
-    #     return sp.transfer_operation(payload, sp.mutez(0), token_contract)
+    # Admin tests
+    scenario += staking_pool.propose_administrator(alice.address).run(
+        sender=alice, now=now, valid=False
+    )
+    scenario += staking_pool.propose_administrator(alice.address).run(
+        sender=administrator, now=now, valid=True
+    )
+    scenario.verify(staking_pool.data.administrators.contains(alice.address) == True)
+    scenario.verify_equal(
+        staking_pool.data.administrators[alice.address], AdministratorState.PROPOSED
+    )
 
-    # def exchange_lambda(pair):
-    #     sp.set_type(pair, sp.TPair(sp.TNat, sp.TNat))
-    #     sp.result(
-    #         sp.list(
-    #             [
-    #                 execute_fa2_token_transfer(
-    #                     exchange_token.address, staking_token.address, 0, sp.fst(pair)
-    #                 ),
-    #                 execute_mint(
-    #                     staking_token.address,
-    #                     unified_staking_pool.address,
-    #                     0,
-    #                     sp.snd(pair),
-    #                 ),
-    #             ]
-    #         )
-    #     )
+    scenario += staking_pool.set_administrator(sp.unit).run(
+        sender=bob, now=now, valid=False
+    )
+    scenario += staking_pool.set_administrator(sp.unit).run(
+        sender=alice, now=now, valid=True
+    )
+    scenario.verify(staking_pool.data.administrators.contains(alice.address) == True)
+    scenario.verify_equal(
+        staking_pool.data.administrators[alice.address], AdministratorState.SET
+    )
 
-    # # exchange_key = ExchangeKey.make(
-    # #     src_token_id=0,
-    # #     src_token_address=exchange_token.address,
-    # #     dst_token_id=0,
-    # #     dst_token_address=staking_token.address,
-    # # )
-    # # exchange_value = ExchangeValue.make(
-    # #     oracle_address=exchange_oracle.address, execution_lambda=exchange_lambda
-    # # )
-    # #scenario.p("cannot set exchange if not admin")
-    # # scenario += unified_staking_pool.set_exchange(
-    # #     exchange_key=exchange_key, exchange_value=exchange_value
-    # # ).run(sender=bob.address, now=now, valid=False)
-    # # scenario.p("admin can set exchange")
-    # # scenario += unified_staking_pool.set_exchange(
-    # #     exchange_key=exchange_key, exchange_value=exchange_value
-    # # ).run(sender=administrator.address, now=now, valid=True)
-    # # scenario.p("cannot remove exchange if not admin")
-    # # scenario += unified_staking_pool.remove_exchange(exchange_key).run(
-    # #     sender=bob.address, now=now, valid=False
-    # # )
-    # # scenario.p("admin can remove exchange")
-    # # scenario += unified_staking_pool.remove_exchange(exchange_key).run(
-    # #     sender=administrator.address, now=now, valid=True
-    # # )
-    # # scenario.p("cannot exchange if not existing")
-    # # scenario += unified_staking_pool.swap(
-    # #     [sp.record(exchange_key=exchange_key, token_amount=reward_payout)]
-    # # ).run(sender=dan.address, now=now, valid=False)
-    # # scenario.p("anyone can exchange if existing")
-    # # scenario += unified_staking_pool.set_exchange(
-    # #     exchange_key=exchange_key, exchange_value=exchange_value
-    # # ).run(sender=administrator.address, now=now, valid=True)
-    # # scenario.p("cannot swap with wrong timestamp")
-    # # scenario += unified_staking_pool.swap(
-    # #     [sp.record(exchange_key=exchange_key, token_amount=reward_payout)]
-    # # ).run(sender=dan.address, now=now, valid=False)
-    # # scenario.p("can swap within right time slot")
-    # # now = sp.timestamp(1652850001)
-    # # scenario += unified_staking_pool.swap(
-    # #     [sp.record(exchange_key=exchange_key, token_amount=reward_payout)]
-    # # ).run(sender=dan.address, now=now, valid=True)
-    # # scenario.verify_equal(
-    # #     exchange_token.data.ledger[unified_staking_pool_key],
-    # #     initial_balance - reward_payout,
-    # # )
-    # # scenario.verify_equal(exchange_token.data.ledger[staking_token_key], reward_payout)
+    scenario += staking_pool.remove_administrator(alice.address).run(
+        sender=bob, now=now, valid=False
+    )
+    scenario += staking_pool.remove_administrator(alice.address).run(
+        sender=administrator, now=now, valid=True
+    )
+    scenario.verify(staking_pool.data.administrators.contains(alice.address) == False)
 
-    # scenario.h2("Testing Views")
-    # scenario.verify_equal(
-    #     unified_staking_pool.view_balance(sp.record(address=alice.address, token_id=3)),
-    #     1,
-    # )
-    # scenario.verify_equal(
-    #     unified_staking_pool.view_balance(sp.record(address=bob.address, token_id=3)), 0
-    # )
-    # scenario.verify_equal(
-    #     unified_staking_pool.view_balance(sp.record(address=dan.address, token_id=3)), 0
-    # )
-    # scenario.verify_equal(
-    #     unified_staking_pool.view_is_operator(
-    #         sp.record(token_id=3, owner=bob.address, operator=alice.address)
-    #     ),
-    #     True,
-    # )
-    # scenario.verify_equal(
-    #     unified_staking_pool.view_is_operator(
-    #         sp.record(token_id=3, owner=bob.address, operator=bob.address)
-    #     ),
-    #     False,
-    # )
-    # scenario.verify_equal(unified_staking_pool.view_stake(3).stake, alices_stake)
-    # scenario.verify_equal(unified_staking_pool.view_max_release_period(), 100)
-    # scenario.verify_equal(
-    #     unified_staking_pool.view_administrator_state(alice.address), -1
-    # )
-    # scenario.verify_equal(
-    #     unified_staking_pool.view_administrator_state(administrator.address), 1
-    # )
-    # scenario.verify_equal(unified_staking_pool.view_last_stake_id(), 3)
-    # scenario.verify_equal(
-    #     unified_staking_pool.view_owner_stakes(alice.address), sp.set([3])
-    # )
-    # scenario.verify(unified_staking_pool.view_disc_factor() > 0)
-    # scenario.verify(unified_staking_pool.view_total_stake() > 0)
+    scenario += staking_pool.update_max_release_period(360 * 24 * 60 * 60).run(
+        sender=alice, now=now, valid=False
+    )
+    scenario += staking_pool.update_max_release_period(360 * 24 * 60 * 60).run(
+        sender=administrator, now=now, valid=True
+    )
+    scenario.verify(staking_pool.data.max_release_period == 360 * 24 * 60 * 60)
