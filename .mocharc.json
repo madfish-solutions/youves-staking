@@ -1,0 +1,5 @@
+{
+  "timeout": 0,
+  "extension": ["ts"],
+  "spec": "test/*.spec.ts"
+}
