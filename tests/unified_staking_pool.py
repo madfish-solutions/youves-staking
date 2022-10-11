@@ -29,7 +29,22 @@ class DummyFA2(fa2.AdministrableFA2):
                     recipient_token_amount.token_id, recipient_token_amount.owner
                 )
             ] = recipient_token_amount.token_amount
-
+    
+    @sp.entry_point
+    def burn(self, recipient_token_amount):
+        sp.set_type(recipient_token_amount, fa2.RecipientTokenAmount.get_type())
+        self.data.ledger[
+            fa2.LedgerKey.make(
+                recipient_token_amount.token_id, recipient_token_amount.owner
+            )
+        ] = sp.as_nat(
+            self.data.ledger[
+                fa2.LedgerKey.make(
+                    recipient_token_amount.token_id, recipient_token_amount.owner
+                )
+            ]
+            - recipient_token_amount.token_amount
+        )
 
 @sp.add_test(name="Normal Staking Pool")
 def test_normal_staking_pool():
@@ -485,3 +500,251 @@ def test_vesting_incentive():
         sender=administrator, now=now, valid=True
     )
     scenario.verify(staking_pool.data.max_release_period == 360 * 24 * 60 * 60)
+
+@sp.add_test(name="Vesting Staking Pool multistakes")
+def test_multi_stakes():
+    scenario = sp.test_scenario()
+    scenario.h1("Unified Staking Pool Test")
+    scenario.table_of_contents()
+
+    scenario.h2("Bootstrapping")
+
+    administrator = sp.test_account("Administrator")
+    alice = sp.test_account("Alice")
+    bob = sp.test_account("Robert")
+    dan = sp.test_account("Dan")
+
+    scenario.show([administrator, alice, bob, dan])
+
+    token_id = sp.nat(0)
+    staking_token = DummyFA2({fa2.LedgerKey.make(token_id, administrator.address): sp.unit})
+    reward_token = DummyFA2({fa2.LedgerKey.make(token_id, administrator.address): sp.unit})
+    scenario += staking_token
+    scenario += reward_token
+    scenario += reward_token.set_token_metadata(
+        token_id=token_id, token_info=sp.map()
+    ).run(sender=administrator)
+
+    scenario += staking_token.set_token_metadata(
+        token_id=token_id, token_info=sp.map()
+    ).run(sender=administrator)
+
+    staking_token_key = fa2.LedgerKey.make(0, staking_token.address)
+                    
+    unified_staking_pool = UnifiedStakingPool(
+        sp.record(id=token_id, address=staking_token.address), True, sp.record(id=token_id, address=reward_token.address), 100, {administrator.address: 1}
+    )
+    scenario += unified_staking_pool
+
+    initial_balance = 1000 * Constants.PRECISION_FACTOR
+
+    scenario += staking_token.mint(
+        owner=alice.address, token_id=token_id, token_amount=initial_balance
+    )
+    scenario += staking_token.mint(
+        owner=bob.address, token_id=token_id, token_amount=initial_balance
+    )
+    scenario += staking_token.mint(
+        owner=dan.address, token_id=token_id, token_amount=initial_balance
+    )
+    scenario += staking_token.update_operators(
+        [
+            sp.variant(
+                "add_operator",
+                sp.record(
+                    owner=alice.address,
+                    operator=unified_staking_pool.address,
+                    token_id=token_id,
+                ),
+            )
+        ]
+    ).run(sender=alice.address)
+    scenario += staking_token.update_operators(
+        [
+            sp.variant(
+                "add_operator",
+                sp.record(
+                    owner=dan.address,
+                    operator=unified_staking_pool.address,
+                    token_id=token_id,
+                ),
+            )
+        ]
+    ).run(sender=dan.address)
+    scenario += staking_token.update_operators(
+        [
+            sp.variant(
+                "add_operator",
+                sp.record(
+                    owner=bob.address,
+                    operator=unified_staking_pool.address,
+                    token_id=token_id,
+                ),
+            )
+        ]
+    ).run(sender=bob.address)
+
+    alice_ledger_key = fa2.LedgerKey.make(0, alice.address)
+    bob_ledger_key = fa2.LedgerKey.make(0, bob.address)
+    dan_ledger_key = fa2.LedgerKey.make(0, dan.address)
+    unified_staking_pool_key = fa2.LedgerKey.make(0, unified_staking_pool.address)
+
+    scenario.h2("Single User Flows")
+    now = sp.timestamp(0)
+    scenario.p("Alice stakes 1 token")
+    alices_stake = 1 * Constants.PRECISION_FACTOR
+    alices_balance = initial_balance
+    alices_reward = 0
+
+    scenario += unified_staking_pool.deposit(
+        sp.record(token_amount=alices_stake, stake_id=0)
+    ).run(sender=alice.address, now=now)
+    scenario.p("Alice withdraws what she put in")
+    scenario += unified_staking_pool.withdraw(
+        sp.record(stake_id=1)
+    ).run(sender=alice.address, now=now)
+    scenario.verify_equal(staking_token.data.ledger[alice_ledger_key], alices_balance)
+
+    scenario.p("Alice stakes 1 token")
+
+    reward_payout = 1 * Constants.PRECISION_FACTOR
+    total_reward = reward_payout
+    scenario += unified_staking_pool.deposit(
+        sp.record(token_amount=alices_stake, stake_id=0)
+    ).run(sender=alice.address, now=now)
+    scenario += reward_token.mint(
+        owner=unified_staking_pool.address,
+        token_id=token_id,
+        token_amount=reward_payout,
+    )
+
+    scenario.p("Alice withdraws what she put in after reward")
+    scenario += unified_staking_pool.withdraw(
+        sp.record(stake_id=2)
+    ).run(sender=alice.address, now=now)
+    scenario.verify_equal(staking_token.data.ledger[alice_ledger_key], alices_balance)
+    scenario.verify_equal(
+        reward_token.data.ledger[unified_staking_pool_key], reward_payout
+    )
+
+    scenario.p("Alice stakes 1 token")
+    scenario += unified_staking_pool.deposit(
+        sp.record(token_amount=alices_stake, stake_id=0)
+    ).run(sender=alice.address, now=now)
+    scenario += reward_token.mint(
+        owner=unified_staking_pool.address,
+        token_id=token_id,
+        token_amount=reward_payout,
+    )
+
+    scenario.p("Alice withdraws what she put in after reward after 1/10 of the time")
+    now = now.add_seconds(10)
+    total_reward += reward_payout
+    alices_reward += total_reward // 10
+  
+    scenario += unified_staking_pool.withdraw(
+        sp.record(stake_id=3)
+    ).run(sender=alice.address, now=now)
+    scenario.verify_equal(staking_token.data.ledger[alice_ledger_key], alices_balance)
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alices_reward)
+    scenario.verify_equal(
+        reward_token.data.ledger[unified_staking_pool_key], total_reward * 9 // 10
+    )
+
+    scenario.p("Alice stakes 1 token")
+    scenario += unified_staking_pool.deposit(
+        sp.record(token_amount=alices_stake, stake_id=0)
+    ).run(sender=alice.address, now=now)
+    scenario += reward_token.mint(
+        owner=unified_staking_pool.address,
+        token_id=token_id,
+        token_amount=reward_payout,
+    )
+
+    scenario.p(
+        "Alice withdraws what she put in after reward after 10/10 of the time, get full rewards"
+    )
+    now = now.add_seconds(100)
+    total_reward = total_reward * 9 // 10 + reward_payout
+    alices_reward += total_reward
+   
+    scenario += unified_staking_pool.withdraw(
+        sp.record(stake_id=4)
+    ).run(sender=alice.address, now=now)
+
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alices_reward)
+
+    scenario.p("Alice stakes 1 token")
+    scenario += unified_staking_pool.deposit(
+        sp.record(token_amount=alices_stake, stake_id=0)
+    ).run(sender=alice.address, now=now)
+    scenario += reward_token.mint(
+        owner=unified_staking_pool.address,
+        token_id=token_id,
+        token_amount=reward_payout,
+    )
+
+    scenario.p("Alice withdraws half-time half of her stake")
+    now = now.add_seconds(50)
+    total_reward = reward_payout
+
+    alices_reward += total_reward // 2
+    remaining_reward = total_reward // 2
+
+    scenario += unified_staking_pool.withdraw(
+        sp.record(stake_id=5)
+    ).run(sender=alice.address, now=now)
+
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alices_reward)
+    scenario.verify_equal(staking_token.data.ledger[alice_ledger_key], alices_balance)
+    scenario.verify_equal(
+        reward_token.data.ledger[unified_staking_pool_key], remaining_reward
+    )
+
+    scenario += reward_token.burn(
+        owner=unified_staking_pool.address,
+        token_id=token_id,
+        token_amount=reward_token.data.ledger[unified_staking_pool_key],
+    )
+    scenario.p("Alice stakes 1 token")
+    scenario += unified_staking_pool.deposit(
+        sp.record(token_amount=alices_stake, stake_id=0)
+    ).run(sender=alice.address, now=now)
+    scenario += reward_token.mint(
+        owner=unified_staking_pool.address,
+        token_id=token_id,
+        token_amount=reward_payout,
+    )
+
+    scenario.p(
+        "Alice adds 1 token to stake after half time, after reward her stake is currently 2:1"
+    )
+    now = now.add_seconds(50)
+    scenario += unified_staking_pool.deposit(
+        sp.record(token_amount=alices_stake, stake_id=6)
+    ).run(sender=alice.address, now=now)
+    scenario += reward_token.mint(
+        owner=unified_staking_pool.address,
+        token_id=token_id,
+        token_amount=reward_payout,
+    )
+    scenario += reward_token.burn(
+        owner=alice.address,
+        token_id=token_id,
+        token_amount=reward_token.data.ledger[alice_ledger_key],
+    )
+
+    scenario.p("Alice withdraws full after half time of the second deposit")
+    now = now.add_seconds(50)
+    total_reward = 2 * reward_payout
+    # when alice deposits the second time, her stake has grown to 2x, this means we have 1x age of 0 and 2x age of 50 == an age of 33 days. Add the 50 days to that we end up at the 83 days used below.
+    alices_reward = total_reward * 3 // 4
+    remaining_reward = total_reward - alices_reward
+    scenario += unified_staking_pool.withdraw(
+        sp.record(stake_id=6)
+    ).run(sender=alice.address, now=now)
+    
+    scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alices_reward)
+    scenario.verify_equal(
+        reward_token.data.ledger[unified_staking_pool_key], remaining_reward
+    )
