@@ -163,13 +163,20 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         Utils.execute_get_own_balance(
             self.data.reward_token.address, self.data.reward_token.id, "set_balance"
         )
+    def ceil_div(self, numerator, denominator):
+        (quotient, remainder) = sp.match_pair(sp.ediv(numerator, denominator).open_some())
+
+        with sp.if_(remainder > 0):
+            return quotient + 1
+        with sp.else_():
+            return quotient
 
     @sp.private_lambda(with_storage="read-write", with_operations=False, wrap_call=True)
     def sub_update_factor(self, unit):
         """sub entrypoint which updates the discount factor based on the received reward.
 
         Pre: storage.total_stake > 0
-        Post: storage.last_token_balance = storage.current_token_balance
+        Post: storage.la200st_token_balance = storage.current_token_balance
         Post: storage.disc_fator += ((storage.current_token_balance - storage.last_token_balance)*10**12)/storage.total_stake
 
         Args:

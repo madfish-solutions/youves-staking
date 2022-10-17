@@ -3,9 +3,7 @@ import smartpy as sp
 import utils.constants as Constants
 import utils.fa2 as fa2
 from utils.administrable_mixin import AdministratorState
-
-from contracts.tracker.long_staking_pool import LongStakingPool
-from contracts.tracker.unified_staking_pool import UnifiedStakingPool
+from contracts.unified_staking_pool import UnifiedStakingPool
 
 class DummyFA2(fa2.AdministrableFA2):
     @sp.entry_point
