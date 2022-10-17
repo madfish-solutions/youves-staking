@@ -7,7 +7,7 @@ import BigNumber from "bignumber.js";
 import { PRECISION } from "../test/helpers/Constants";
 export const stakingStorage: StakingStorageType = {
   total_stake: new BigNumber(0),
-  max_release_period: new BigNumber(180 * 24 * 60 * 60),
+  max_release_period: new BigNumber(90 * 24 * 60 * 60),
   last_stake_id: new BigNumber(0),
   stakes: MichelsonMap.fromLiteral({}),
   stakes_owner_lookup: MichelsonMap.fromLiteral({}),
