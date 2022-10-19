@@ -50,26 +50,34 @@ export the smartpy PATH.
 ```
 export PATH=$PATH:/home/node/smartpy-cli/
 ```
+## Compilation
+
+```
+yarn compile
+```
 
 ## Testing
 
-The tests are easiest to run using
+The python tests are easiest to run using
 
 ```
-cd tests
-SmartPy.sh test unified_staking_pool.py out --html
-SmartPy.sh test unified_staking_pool_factory.py out --html
+yarn py-test
+```
+
+The ts tests are easiest to run using
+
+```
+yarn test
 ```
 
 ## Deployment
 
 ### Platform
 
-Once you are happy with the local test you can deploy to the network (this will take +-20 minutes)
+Once you are happy with the local test you can deploy to the network
 
 ```
-cd compilations
-SmartPy.sh compile all.py out
+yarn migrate-ghostnet
 ```
 
 ### Multisig Deployment
