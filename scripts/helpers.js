@@ -35,129 +35,29 @@ const getLigo = (isDockerizedLigo, ligoVersion = env.ligoVersion) => {
   return path;
 };
 
-const getContractsList = () => {
-  return fs
-    .readdirSync(env.contractsDir)
-    .filter((file) => file.endsWith(".ligo"))
-    .map((file) => file.slice(0, file.length - 5));
-};
-
 const getMigrationsList = () => {
   return fs
     .readdirSync(env.migrationsDir)
-    .filter((file) => file.endsWith(".js"))
-    .map((file) => file.slice(0, file.length - 3));
-};
-
-const compile = async (
-  contract,
-  format,
-  contractsDir = env.contractsDir,
-  outputDir = env.buildDir,
-  ligoVersion = env.ligoVersion
-) => {
-  const ligo = getLigo(true, ligoVersion);
-  const contracts = !contract ? getContractsList() : [contract];
-
-  contracts.forEach((contract) => {
-    const michelson = execSync(
-      `${ligo} compile contract $PWD/${contractsDir}/${contract}.ligo ${
-        format === "json" ? "--michelson-format json" : ""
-      } --protocol hangzhou`,
-      { maxBuffer: 1024 * 500 }
-    ).toString();
-
-    try {
-      if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir);
-      }
-
-      if (format === "json") {
-        const artifacts = JSON.stringify(
-          {
-            contractName: contract,
-            michelson: JSON.parse(michelson),
-            networks: {},
-            compiler: {
-              name: "ligo",
-              version: ligoVersion,
-            },
-            networkType: "tezos",
-          },
-          null,
-          2
-        );
-
-        fs.writeFileSync(`${outputDir}/${contract}.json`, artifacts);
-      } else {
-        fs.writeFileSync(`${outputDir}/${contract}.tz`, michelson);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  });
-};
-
-const compileLambdas = async (
-  json,
-  contract,
-  ligoVersion = env.ligoVersion
-) => {
-  const ligo = getLigo(true, ligoVersion);
-  const pwd = execSync("echo $PWD").toString();
-  const lambdas = JSON.parse(
-    fs.readFileSync(`${pwd.slice(0, pwd.length - 1)}/${json}`)
-  );
-  let res = [];
-
-  try {
-    for (const lambda of lambdas) {
-      const michelson = execSync(
-        `${ligo} compile expression pascaligo 'Setup_func(record [index=${lambda.index}n; func=Bytes.pack(${lambda.name})])' --michelson-format json --init-file $PWD/${contract} --protocol hangzhou`,
-        { maxBuffer: 1024 * 500 }
-      ).toString();
-
-      res.push(JSON.parse(michelson).args[0].args[0]);
-
-      console.log(
-        lambda.index + 1 + ". " + lambda.name + " successfully compiled."
-      );
-    }
-
-    if (!fs.existsSync(`${env.buildDir}/lambdas`)) {
-      fs.mkdirSync(`${env.buildDir}/lambdas`);
-    }
-
-    if (contract.includes("q_farm")) {
-      fs.writeFileSync(
-        `${env.buildDir}/lambdas/q_farm_lambdas.json`,
-        JSON.stringify(res)
-      );
-    } else {
-      fs.writeFileSync(
-        `${env.buildDir}/lambdas/t_farm_lambdas.json`,
-        JSON.stringify(res)
-      );
-    }
-  } catch (e) {
-    console.error(e);
-  }
+    .filter(file => file.endsWith(".js"))
+    .map(file => file.slice(0, file.length - 3));
 };
 
 const migrate = async (tezos, contract, storage, network) => {
   try {
     const artifacts = JSON.parse(
-      fs.readFileSync(`${env.buildDir}/${contract}.json`)
+      fs.readFileSync(
+        `${env.buildDir}/${contract}/step_000_cont_0_contract.json`,
+      ),
     );
     const operation = await tezos.contract
       .originate({
-        code: artifacts.michelson,
+        code: artifacts,
         storage: storage,
         fee: 1000000,
         gasLimit: 1040000,
         storageLimit: 20000,
       })
-      .catch((e) => {
+      .catch(e => {
         console.error(e);
 
         return { contractAddress: null };
@@ -165,16 +65,11 @@ const migrate = async (tezos, contract, storage, network) => {
 
     await confirmOperation(tezos, operation.hash);
 
-    artifacts.networks[network] = { [contract]: operation.contractAddress };
-
-    if (!fs.existsSync(env.buildDir)) {
-      fs.mkdirSync(env.buildDir);
-    }
-
-    fs.writeFileSync(
-      `${env.buildDir}/${contract}.json`,
-      JSON.stringify(artifacts, null, 2)
+    const addresses = JSON.parse(
+      fs.readFileSync(`compilations/addresses.json`),
     );
+    addresses[network][contract] = operation.contractAddress;
+    fs.writeFileSync(`compilations/addresses.json`, JSON.stringify(addresses));
 
     return operation.contractAddress;
   } catch (e) {
@@ -185,7 +80,7 @@ const migrate = async (tezos, contract, storage, network) => {
 const getDeployedAddress = (contract, network) => {
   try {
     const artifacts = JSON.parse(
-      fs.readFileSync(`${env.buildDir}/${contract}.json`)
+      fs.readFileSync(`${env.buildDir}/${contract}.json`),
     );
 
     return artifacts.networks[network][contract];
@@ -194,7 +89,7 @@ const getDeployedAddress = (contract, network) => {
   }
 };
 
-const runMigrations = async (options) => {
+const runMigrations = async options => {
   try {
     const migrations = getMigrationsList();
 
@@ -225,11 +120,8 @@ const runMigrations = async (options) => {
 
 module.exports = {
   getLigo,
-  getContractsList,
   getMigrationsList,
   getDeployedAddress,
-  compile,
-  compileLambdas,
   migrate,
   runMigrations,
   env,
