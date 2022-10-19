@@ -26,7 +26,7 @@ def test_normal_staking_pool():
         max_release_period = sp.nat(180 * 24 * 60 * 60),
         administrators=sp.big_map({administrator.address: 1}),
     )
-    scenario += obj.deployContract(param).run(sender = administrator)
+    scenario += obj.deploy_pool(param).run(sender = administrator)
 
     scenario.verify_equal(obj.data.staking_pools[0], obj.data.staking_pools[0])
     scenario.verify_equal(obj.data.pool_counter, 1)
