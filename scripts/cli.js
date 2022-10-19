@@ -1,70 +1,8 @@
 const yargs = require("yargs");
 
-const { compile, compileLambdas, runMigrations } = require("./helpers");
+const { runMigrations } = require("./helpers");
 
 const argv = yargs
-  .command(
-    "compile [contracts] [format] [output_dir]",
-    "compiles the contract",
-    {
-      contracts: {
-        description: "the contract to compile",
-        alias: "c",
-        type: "array",
-      },
-      format: {
-        description: "fromat of output file",
-        alias: "f",
-        type: "string",
-      },
-      contracts_dir: {
-        description: "contracts directory",
-        alias: "p",
-        type: "string",
-      },
-      output_dir: {
-        description: "output directory",
-        alias: "o",
-        type: "string",
-      },
-      ligo_version: {
-        description: "ligo version",
-        alias: "v",
-        type: "string",
-      },
-    },
-    async (argv) => {
-      for (i in argv.contracts) {
-        compile(
-          argv.contracts[i],
-          argv.format,
-          argv.contracts_dir,
-          argv.output_dir,
-          argv.ligo_version
-        );
-      }
-    }
-  )
-  .command(
-    "compile-lambda [json] [contract]",
-    "compile lambdas for the specified contract",
-    {
-      json: {
-        description:
-          "input file relative path (with lambdas indexes and names)",
-        alias: "j",
-        type: "string",
-      },
-      contract: {
-        description: "input file realtive path (with lambdas Ligo code)",
-        alias: "c",
-        type: "string",
-      },
-    },
-    async (argv) => {
-      compileLambdas(argv.json, argv.contract);
-    }
-  )
   .command(
     "migrate [network] [from] [to]",
     "run migrations",

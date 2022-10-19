@@ -3,7 +3,7 @@ import smartpy as sp
 
 from contracts.unified_staking_pool import UnifiedStakingPool, Fa2TokenType
 from utils.administrable_mixin import SingleAdministrableMixin
-import utils.constants as Constants    
+import utils.constants as Constants
 
 class StakingPoolFactory(sp.Contract, SingleAdministrableMixin):
 
@@ -14,7 +14,6 @@ class StakingPoolFactory(sp.Contract, SingleAdministrableMixin):
             dict: initial storage of the contract
       """
       storage = {}
-      # storage["administrators"] = self.administrators
       storage["pool_counter"] = sp.nat(0)
       storage["staking_pools"] = sp.big_map(tkey=sp.TNat, tvalue=sp.TAddress)
       storage["administrators"] = self.administrators
@@ -23,10 +22,14 @@ class StakingPoolFactory(sp.Contract, SingleAdministrableMixin):
   def __init__(self, administrators):
       self.administrators = administrators
       self.init(**self.get_init_storage())
-        
+
   @sp.entry_point
-  def deployContract(self, deposit_token, deposit_token_is_v2, reward_token, max_release_period, administrators):
-      self.verify_is_admin()
+  def deploy_pool(self, deposit_token, deposit_token_is_v2, reward_token, max_release_period, administrators):
+      self.verify_is_admin(sp.unit)
+      sp.set_type(deposit_token, Fa2TokenType.get_type())
+      sp.set_type(deposit_token_is_v2, sp.TBool)
+      sp.set_type(reward_token, Fa2TokenType.get_type())
+      sp.set_type(max_release_period, sp.TNat)
 
       new_pool = sp.create_contract(contract = UnifiedStakingPool(
             deposit_token,
@@ -35,4 +38,4 @@ class StakingPoolFactory(sp.Contract, SingleAdministrableMixin):
             max_release_period,
             administrators))
       self.data.staking_pools[self.data.pool_counter] = new_pool
-      self.data.pool_counter += sp.nat(1) 
+      self.data.pool_counter += sp.nat(1)

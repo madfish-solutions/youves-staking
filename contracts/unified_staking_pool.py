@@ -11,15 +11,15 @@ from utils.internal_mixin import InternalMixin
 class Fa2TokenType:
     def get_type():
         return sp.TRecord(
-            id=sp.TNat,
-            address=sp.TAddress,
-        ).layout(("id", "address"))
+            token_id=sp.TNat,
+            token_address=sp.TAddress,
+        ).layout(("token_id", "token_address"))
 
     def make(token_id, token_address):
         return sp.set_type_expr(
             sp.record(
-                id=token_id,
-                address=token_address,
+                token_id=token_id,
+                token_address=token_address,
             ),
             Fa2TokenType.get_type(),
         )
@@ -139,7 +139,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         max_release_period, the age will be considered max_release_period) and the administrator of the contract.
 
         Args:
-            engine_address (sp.address): engine address
+            engine_address (sp.token_address): engine address
             deposit_token (Fa2TokenType): deposit token
             token_id (sp.nat): token id
             reward_token (Fa2TokenType): reward token
@@ -161,7 +161,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
             unit (sp.unit): nothing
         """
         Utils.execute_get_own_balance(
-            self.data.reward_token.address, self.data.reward_token.id, "set_balance"
+            self.data.reward_token.token_address, self.data.reward_token.token_id, "set_balance"
         )
     def ceil_div(self, numerator, denominator):
         (quotient, remainder) = sp.match_pair(sp.ediv(numerator, denominator).open_some())
@@ -218,17 +218,17 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         )
 
         Utils.execute_fa2_token_transfer(
-            self.data.reward_token.address,
+            self.data.reward_token.token_address,
             sp.self_address,
             sp.self_address,
-            self.data.reward_token.id,
+            self.data.reward_token.token_id,
             sp.as_nat(reward_token_amount.value - timed_reward_token_amount.value),
         )  # this self-transfer is just for indexing purposes and not required for functionality. It can be removed if gas matters.
         Utils.execute_fa2_token_transfer(
-            self.data.reward_token.address,
+            self.data.reward_token.token_address,
             sp.self_address,
             self.data.sender,
-            self.data.reward_token.id,
+            self.data.reward_token.token_id,
             timed_reward_token_amount.value,
         )
 
@@ -257,7 +257,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
             balance_of_response (sp.nat): fa2 balance_of response used to set the current_token_balance
         """
         sp.set_type(balance_of_response, BalanceOf.get_response_type())
-        sp.verify(sp.sender == self.data.reward_token.address, message=Errors.INVALID_SENDER)
+        sp.verify(sp.sender == self.data.reward_token.token_address, message=Errors.INVALID_SENDER)
         with sp.match_cons(balance_of_response) as matched_balance_of_response:
             sp.verify(
                 matched_balance_of_response.head.request.owner == sp.self_address,
@@ -291,10 +291,10 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
 
         token_amount = sp.local("token_amount", deposit_paramter.token_amount)
         Utils.execute_fa2_token_transfer(
-            self.data.deposit_token.address,
+            self.data.deposit_token.token_address,
             self.data.sender,
             sp.self_address,
-            self.data.deposit_token.id,
+            self.data.deposit_token.token_id,
             token_amount.value,
         )
 
@@ -424,10 +424,10 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         )
 
         Utils.execute_fa2_token_transfer(
-            self.data.deposit_token.address,
+            self.data.deposit_token.token_address,
             sp.self_address,
             self.data.sender,
-            self.data.deposit_token.id,
+            self.data.deposit_token.token_id,
             stake.value.stake,
         )
 
@@ -449,7 +449,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         )
 
         dex_contract = sp.contract(
-            DexVoteType.get_type(), self.data.deposit_token.address, entry_point="vote"
+            DexVoteType.get_type(), self.data.deposit_token.token_address, entry_point="vote"
         ).open_some()
 
         sp.transfer(params, sp.mutez(0), dex_contract)
@@ -465,7 +465,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         )
 
         dex_contract = sp.contract(
-            WithdrawBakerRewardType.get_type(), self.data.deposit_token.address, entry_point="withdraw_profit"
+            WithdrawBakerRewardType.get_type(), self.data.deposit_token.token_address, entry_point="withdraw_profit"
         ).open_some()
 
         sp.transfer(
