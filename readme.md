@@ -53,16 +53,12 @@ export PATH=$PATH:/home/node/smartpy-cli/
 
 ## Testing
 
-The tests are easiest to run using 
+The tests are easiest to run using
 
 ```
-cd tracker
-SmartPy.sh test vault.py out --html
-SmartPy.sh test tracker_engine.py out --html
-SmartPy.sh test staking_pool.py out --html
-SmartPy.sh test savings_pool.py out --html
-SmartPy.sh test options_listing.py out --html
-SmartPy.sh test governance_token.py out --html
+cd tests
+SmartPy.sh test unified_staking_pool.py out --html
+SmartPy.sh test unified_staking_pool_factory.py out --html
 ```
 
 ## Deployment
@@ -72,9 +68,8 @@ SmartPy.sh test governance_token.py out --html
 Once you are happy with the local test you can deploy to the network (this will take +-20 minutes)
 
 ```
-cd tracker
-SmartPy.sh compile compiler.py out
-python3 deployment.py 
+cd compilations
+SmartPy.sh compile all.py out
 ```
 
 ### Multisig Deployment
