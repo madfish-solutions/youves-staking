@@ -14,7 +14,6 @@ class StakingPoolFactory(sp.Contract, SingleAdministrableMixin):
             dict: initial storage of the contract
       """
       storage = {}
-      # storage["administrators"] = self.administrators
       storage["pool_counter"] = sp.nat(0)
       storage["staking_pools"] = sp.big_map(tkey=sp.TNat, tvalue=sp.TAddress)
       storage["administrators"] = self.administrators
@@ -25,7 +24,7 @@ class StakingPoolFactory(sp.Contract, SingleAdministrableMixin):
       self.init(**self.get_init_storage())
         
   @sp.entry_point
-  def deployContract(self, deposit_token, deposit_token_is_v2, reward_token, max_release_period, administrators):
+  def deploy_contract(self, deposit_token, deposit_token_is_v2, reward_token, max_release_period, administrators):
       self.verify_is_admin()
 
       new_pool = sp.create_contract(contract = UnifiedStakingPool(
