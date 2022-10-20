@@ -1,4 +1,4 @@
-from contracts.unified_staking_pool import Fa2TokenType
+from contracts.unified_staking_pool import TokenType
 import smartpy as sp
 
 import utils.constants as Constants
@@ -20,9 +20,9 @@ def test_normal_staking_pool():
     scenario = sp.test_scenario()
     scenario += obj
     param = sp.record(
-        deposit_token = Fa2TokenType.make(sp.nat(0), Constants.DEFAULT_ADDRESS),
+        deposit_token = TokenType.make(sp.string(Constants.TOKEN_TYPE_FA2), sp.nat(0), Constants.DEFAULT_ADDRESS),
         deposit_token_is_v2 = sp.bool(True),
-        reward_token = Fa2TokenType.make(sp.nat(0), Constants.DEFAULT_ADDRESS),
+        reward_token = TokenType.make(sp.string(Constants.TOKEN_TYPE_FA2), sp.nat(0), Constants.DEFAULT_ADDRESS),
         max_release_period = sp.nat(180 * 24 * 60 * 60),
         administrators=sp.big_map({administrator.address: 1}),
     )
