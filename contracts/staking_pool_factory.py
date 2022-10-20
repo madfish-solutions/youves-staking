@@ -1,7 +1,7 @@
 from multiprocessing import pool
 import smartpy as sp
 
-from contracts.unified_staking_pool import UnifiedStakingPool, Fa2TokenType
+from contracts.unified_staking_pool import UnifiedStakingPool, TokenType
 from utils.administrable_mixin import SingleAdministrableMixin
 import utils.constants as Constants
 
@@ -26,9 +26,9 @@ class StakingPoolFactory(sp.Contract, SingleAdministrableMixin):
   @sp.entry_point
   def deploy_pool(self, deposit_token, deposit_token_is_v2, reward_token, max_release_period, administrators):
       self.verify_is_admin(sp.unit)
-      sp.set_type(deposit_token, Fa2TokenType.get_type())
+      sp.set_type(deposit_token, TokenType.get_type())
       sp.set_type(deposit_token_is_v2, sp.TBool)
-      sp.set_type(reward_token, Fa2TokenType.get_type())
+      sp.set_type(reward_token, TokenType.get_type())
       sp.set_type(max_release_period, sp.TNat)
 
       new_pool = sp.create_contract(contract = UnifiedStakingPool(

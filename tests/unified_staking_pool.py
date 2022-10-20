@@ -2,8 +2,9 @@ import smartpy as sp
 
 import utils.constants as Constants
 import utils.fa2 as fa2
+import utils.fa1 as fa1
 from utils.administrable_mixin import AdministratorState
-from contracts.unified_staking_pool import UnifiedStakingPool
+from contracts.unified_staking_pool import UnifiedStakingPool, TokenType
 
 class DummyFA2(fa2.AdministrableFA2):
     @sp.entry_point
@@ -74,7 +75,7 @@ def test_normal_staking_pool():
     ).run(sender=administrator)
 
     scenario.h1("Long Staking with release of 0")
-    staking_pool = UnifiedStakingPool(sp.record(token_id=token_id, token_address=staking_token.address), True, sp.record(token_id=0, token_address=reward_token.address), 180 * 24 * 60 * 60, {administrator.address: 1})
+    staking_pool = UnifiedStakingPool(sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=token_id, token_address=staking_token.address), True, sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=0, token_address=reward_token.address), 180 * 24 * 60 * 60, {administrator.address: 1})
 
     scenario += staking_pool
 
@@ -288,7 +289,7 @@ def test_vesting_incentive():
     ).run(sender=administrator)
 
     scenario.h1("Long Staking with release of 0")
-    staking_pool = staking_pool = UnifiedStakingPool(sp.record(token_id=token_id, token_address=staking_token.address), True, sp.record(token_id=0, token_address=reward_token.address), 180 * 24 * 60 * 60, {administrator.address: 1})
+    staking_pool = staking_pool = UnifiedStakingPool(sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=token_id, token_address=staking_token.address), True, sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=0, token_address=reward_token.address), 180 * 24 * 60 * 60, {administrator.address: 1})
 
     scenario += staking_pool
 
@@ -530,7 +531,7 @@ def test_multi_stakes_solo():
     staking_token_key = fa2.LedgerKey.make(0, staking_token.address)
                     
     unified_staking_pool = UnifiedStakingPool(
-        sp.record(token_id=token_id, token_address=staking_token.address), True, sp.record(token_id=token_id, token_address=reward_token.address), 100, {administrator.address: 1}
+        sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=token_id, token_address=staking_token.address), True, sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=token_id, token_address=reward_token.address), 100, {administrator.address: 1}
     )
     scenario += unified_staking_pool
 
@@ -778,7 +779,7 @@ def test_multi_stakes():
     ).run(sender=administrator)
 
     scenario.h1("Long Staking with release of 0")
-    staking_pool = staking_pool = UnifiedStakingPool(sp.record(token_id=token_id, token_address=staking_token.address), True, sp.record(token_id=0, token_address=reward_token.address), 180 * 24 * 60 * 60, {administrator.address: 1})
+    staking_pool = staking_pool = UnifiedStakingPool(sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=token_id, token_address=staking_token.address), True, sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=0, token_address=reward_token.address), 180 * 24 * 60 * 60, {administrator.address: 1})
 
     scenario += staking_pool
 
@@ -944,3 +945,80 @@ def test_multi_stakes():
     ).run(sender=bob.address, now=now)
     bobs_reward += int((reward_amount / (3 * Constants.PRECISION_FACTOR)) * 1 * Constants.PRECISION_FACTOR)
     scenario.verify_equal(reward_token.data.ledger[bob_ledger_key], bobs_reward)
+
+@sp.add_test(name="Normal Staking Pool fa12 full")
+def test_normal_staking_pool():
+    scenario = sp.test_scenario()
+    scenario.h1("Staking Pool Unit Test")
+    scenario.table_of_contents()
+
+    scenario.h2("Bootstrapping")
+    token_id = sp.nat(0)
+
+    administrator = sp.test_account("Administrator")
+    alice = sp.test_account("Alice")
+    bob = sp.test_account("Robert")
+    charlie = sp.test_account("Charlie")
+    dan = sp.test_account("Dan")
+
+    reward_token = fa1.FA12(administrator.address)
+    staking_token = fa1.FA12(administrator.address)
+
+    scenario += reward_token
+    scenario += staking_token
+
+    scenario.h1("Long Staking with release of 0")
+    staking_pool = UnifiedStakingPool(sp.record(token_type=Constants.TOKEN_TYPE_FA1, token_id=token_id, token_address=staking_token.address), False, sp.record(token_type=Constants.TOKEN_TYPE_FA1, token_id=0, token_address=reward_token.address), 180 * 24 * 60 * 60, {administrator.address: 1})
+
+    scenario += staking_pool
+
+    scenario += staking_token.mint(
+        address=alice.address,
+        value=10 * Constants.PRECISION_FACTOR,
+    ).run(sender = administrator)
+    scenario += staking_token.mint(
+        address=bob.address,
+        value=10 * Constants.PRECISION_FACTOR,
+    ).run(sender = administrator)
+
+    scenario += staking_token.approve(spender = staking_pool.address, value = 10 * Constants.PRECISION_FACTOR).run(sender = alice)
+    scenario += staking_token.approve(spender = staking_pool.address, value = 10 * Constants.PRECISION_FACTOR).run(sender = bob)
+   
+    scenario.h2("Start staking")
+    now = sp.timestamp(0)
+    scenario += staking_pool.deposit(sp.record(token_amount=1 * Constants.PRECISION_FACTOR, stake_id=0)).run(
+        sender=alice, now=now
+    )
+
+    scenario.h2("Claim after a reward has been paid ")
+    now = now.add_seconds(sp.to_int(staking_pool.data.max_release_period))
+    reward_amount = 1 * Constants.PRECISION_FACTOR
+    alice_reward = reward_amount
+    bob_reward = 0
+    scenario.p("pay reward")
+    scenario += reward_token.mint(
+        address=staking_pool.address, value=reward_amount
+    ).run(sender=administrator)
+    scenario.p("alice claims as only user -> gets full reward")
+    scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario.verify_equal(reward_token.data.balances[alice.address].balance, alice_reward)
+    scenario.p("Multiclaim yields nothing")
+    scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario.verify_equal(reward_token.data.balances[alice.address].balance, alice_reward)
+
+    scenario.h2("Bob joins before a reward payout")
+    scenario += staking_pool.deposit(sp.record(token_amount=1 * Constants.PRECISION_FACTOR, stake_id=0)).run(
+        sender=bob, now=now
+    )
+    now = now.add_seconds(sp.to_int(staking_pool.data.max_release_period))
+    scenario.p("pay reward")
+    alice_reward += reward_amount // 2
+    bob_reward += reward_amount // 2
+    scenario += reward_token.mint(
+        address=staking_pool.address, value=reward_amount
+    ).run(sender=administrator)
+    scenario.p("both withdraw, both get same reward")
+    scenario += staking_pool.withdraw(sp.record(stake_id=1)).run(sender=alice, now=now)
+    scenario += staking_pool.withdraw(sp.record(stake_id=2)).run(sender=bob, now=now)
+    scenario.verify_equal(reward_token.data.balances[alice.address].balance, alice_reward)
+    scenario.verify_equal(reward_token.data.balances[bob.address].balance, bob_reward)
