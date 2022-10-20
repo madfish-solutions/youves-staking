@@ -130,6 +130,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         storage["last_rewards"] = sp.nat(0)
         storage["current_rewards"] = sp.nat(0)
         storage["administrators"] = self.administrators
+        storage["expected_rewards"] = sp.nat(0)
 
         storage["operators"] = sp.big_map(tkey=OperatorKey.get_type(), tvalue=sp.TUnit)
         return storage
@@ -248,6 +249,17 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         self.verify_is_admin()
         sp.set_type(max_release_period, sp.TNat)
         self.data.max_release_period = max_release_period
+
+    @sp.entry_point(check_no_incoming_transfer=True)
+    def set_expected_rewards(self, amt):
+        """Set the expected rewards for the next period. This entrypoint can only be called by an admin.
+
+        Args:
+            amt(sp.nat): new expected rewards to be set.
+        """
+        self.verify_is_admin()
+        sp.set_type(amt, sp.TNat)
+        self.data.expected_rewards = amt
 
     @sp.entry_point(check_no_incoming_transfer=True)
     def set_balance(self, balance_of_response):
