@@ -1,4 +1,5 @@
-const { alice, dev } = require("./scripts/sandbox/accounts");
+const { MichelsonMap } = require("@taquito/michelson-encoder");
+const { alice, dev, mainnetDeployer } = require("./scripts/sandbox/accounts");
 
 module.exports = {
   confirmationPollingTimeoutSecond: 500000,
@@ -14,25 +15,147 @@ module.exports = {
       rpc: "http://localhost:8732",
       network_id: "*",
       secretKey: alice.sk,
+      dexAddress: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+      quipuAddress: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+      pools: {
+        0: {
+          deposit_token: {
+            token_id: 0,
+            token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+          },
+          deposit_token_is_v2: true,
+          reward_token: {
+            token_id: 0,
+            token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+          },
+          max_release_period: 100,
+          administrators: MichelsonMap.fromLiteral({ [alice.pkh]: 1 }),
+        },
+        1: {
+          deposit_token: {
+            token_id: 1,
+            token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+          },
+          deposit_token_is_v2: true,
+          reward_token: {
+            token_id: 0,
+            token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+          },
+          max_release_period: 100,
+          administrators: MichelsonMap.fromLiteral({ [alice.pkh]: 1 }),
+        },
+        2: {
+          deposit_token: {
+            token_id: 2,
+            token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+          },
+          deposit_token_is_v2: true,
+          reward_token: {
+            token_id: 0,
+            token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+          },
+          max_release_period: 100,
+          administrators: MichelsonMap.fromLiteral({ [alice.pkh]: 1 }),
+        },
+      },
     },
     ghostnet: {
       rpc: "https://ghostnet.ecadinfra.com/",
       port: 443,
       network_id: "*",
       secretKey: dev.sk,
-      qsgov: {
-        token: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
-        id: 0,
+      dexAddress: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+      quipuAddress: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+      pools: {
+        0: {
+          deposit_token: {
+            token_id: 0,
+            token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+          },
+          deposit_token_is_v2: true,
+          reward_token: {
+            token_id: 0,
+            token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+          },
+          max_release_period: 100,
+          administrators: MichelsonMap.fromLiteral({ [dev.pkh]: 1 }),
+        },
+        1: {
+          deposit_token: {
+            token_id: 1,
+            token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+          },
+          deposit_token_is_v2: true,
+          reward_token: {
+            token_id: 0,
+            token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+          },
+          max_release_period: 100,
+          administrators: MichelsonMap.fromLiteral({ [dev.pkh]: 1 }),
+        },
+        2: {
+          deposit_token: {
+            token_id: 2,
+            token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+          },
+          deposit_token_is_v2: true,
+          reward_token: {
+            token_id: 0,
+            token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+          },
+          max_release_period: 100,
+          administrators: MichelsonMap.fromLiteral({ [dev.pkh]: 1 }),
+        },
       },
-      qsgov_lp: "KT1A4tdqDYbh6S4ugegh5WYPJmYzxWXAtFco",
-      qsgov_lp_id: 4,
-      admin: dev.pkh,
     },
     mainnet: {
       rpc: "https://mainnet.smartpy.io",
       port: 443,
       network_id: "*",
-      secretKey: dev.sk,
+      secretKey: mainnetDeployer.sk,
+      dexAddress: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+      quipuAddress: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+      pools: {
+        0: {
+          deposit_token: {
+            token_id: 0,
+            token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+          },
+          deposit_token_is_v2: true,
+          reward_token: {
+            token_id: 0,
+            token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+          },
+          max_release_period: 100,
+          administrators: { [dev.pkh]: 1 },
+        },
+        1: {
+          deposit_token: {
+            token_id: 1,
+            token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+          },
+          deposit_token_is_v2: true,
+          reward_token: {
+            token_id: 0,
+            token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+          },
+          max_release_period: 100,
+          administrators: { [dev.pkh]: 1 },
+        },
+        2: {
+          deposit_token: {
+            token_id: 2,
+            token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+          },
+          deposit_token_is_v2: true,
+          reward_token: {
+            token_id: 0,
+            token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+          },
+          max_release_period: 100,
+          administrators: { [dev.pkh]: 1 },
+        },
+      },
     },
   },
 };
