@@ -8,20 +8,22 @@ from utils.contract_utils import Utils
 from utils.fa2 import OperatorKey, BalanceOf, FA2ErrorMessage, UpdateOperator, Transfer
 from utils.internal_mixin import InternalMixin
 
-class Fa2TokenType:
+class TokenType:
     def get_type():
         return sp.TRecord(
+            token_type=sp.TString,
             token_id=sp.TNat,
             token_address=sp.TAddress,
-        ).layout(("token_id", "token_address"))
+        ).layout(("token_type", ("token_id", "token_address")))
 
-    def make(token_id, token_address):
+    def make(token_type, token_id, token_address):
         return sp.set_type_expr(
             sp.record(
+                token_type=token_type,
                 token_id=token_id,
                 token_address=token_address,
             ),
-            Fa2TokenType.get_type(),
+            TokenType.get_type(),
         )
 
 class DexVoteType:
@@ -140,10 +142,11 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         max_release_period, the age will be considered max_release_period) and the administrator of the contract.
 
         Args:
-            engine_address (sp.token_address): engine address
-            deposit_token (Fa2TokenType): deposit token
-            token_id (sp.nat): token id
-            reward_token (Fa2TokenType): reward token
+            deposit_token (TokenType): deposit token
+            deposit_token_is_v2 (bool): whether the deposit token is a v2 token
+            reward_token (TokenType): reward token
+            max_release_period (int): maximum release period
+            administrators (BigMap): map of administrators
         """
         self.deposit_token = deposit_token
         self.deposit_token_is_v2 = deposit_token_is_v2
@@ -154,23 +157,19 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
 
     @sp.private_lambda(with_storage="read-only", with_operations=True, wrap_call=True)
     def fetch_reward_balance(self, unit):
-        """Lambda to trigger a own token balance fetch to be set using the callback on the "set_balance" entrypoint.
+        """Lambda to trigger a own token balance fetch to be set using the callback on the "handle_fa2_fetched_rewards" entrypoint.
 
         Post: get token balance
         Post: call update on engine
         Args:
             unit (sp.unit): nothing
         """
-        Utils.execute_get_own_balance(
-            self.data.reward_token.token_address, self.data.reward_token.token_id, "set_balance"
-        )
-    def ceil_div(self, numerator, denominator):
-        (quotient, remainder) = sp.match_pair(sp.ediv(numerator, denominator).open_some())
 
-        with sp.if_(remainder > 0):
-            return quotient + 1
-        with sp.else_():
-            return quotient
+        Utils.execute_get_own_balance(
+            self.data.reward_token.token_type,
+            self.data.reward_token.token_address,
+            self.data.reward_token.token_id,
+        )
 
     @sp.private_lambda(with_storage="read-write", with_operations=False, wrap_call=True)
     def sub_update_factor(self, unit):
@@ -218,14 +217,16 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
             reward_token_amount.value * stake_age // self.data.max_release_period,
         )
 
-        Utils.execute_fa2_token_transfer(
+        Utils.execute_typed_transfer(
+            self.data.reward_token.token_type,
             self.data.reward_token.token_address,
             sp.self_address,
             sp.self_address,
             self.data.reward_token.token_id,
             sp.as_nat(reward_token_amount.value - timed_reward_token_amount.value),
         )  # this self-transfer is just for indexing purposes and not required for functionality. It can be removed if gas matters.
-        Utils.execute_fa2_token_transfer(
+        Utils.execute_typed_transfer(
+            self.data.reward_token.token_type,
             self.data.reward_token.token_address,
             sp.self_address,
             self.data.sender,
@@ -262,7 +263,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         self.data.expected_rewards = amt
 
     @sp.entry_point(check_no_incoming_transfer=True)
-    def set_balance(self, balance_of_response):
+     def handle_fa2_fetched_rewards(self, balance_of_response):
         """called by the token contract to set the apropriate balance.
 
         Args:
@@ -276,6 +277,17 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
                 message=Errors.INVALID_BALANCE_REQUEST,
             )
             self.data.current_rewards = matched_balance_of_response.head.balance
+
+    @sp.entry_point(check_no_incoming_transfer=True)
+    def handle_fa12_fetched_rewards(self, balance):
+        """called by the token contract to set the apropriate balance.
+
+        Args:
+            balance (sp.nat): fa12 balance response used to set the current_token_balance
+        """
+        sp.set_type(balance, sp.TNat)
+        sp.verify(sp.sender == self.data.reward_token.token_address, message=Errors.INVALID_SENDER)
+        self.data.current_rewards = balance
 
     @sp.entry_point(check_no_incoming_transfer=True)
     def deposit(self, deposit_paramter):
@@ -302,7 +314,8 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         self.sub_update_factor(sp.unit)
 
         token_amount = sp.local("token_amount", deposit_paramter.token_amount)
-        Utils.execute_fa2_token_transfer(
+        Utils.execute_typed_transfer(
+            self.data.deposit_token.token_type,
             self.data.deposit_token.token_address,
             self.data.sender,
             sp.self_address,
@@ -435,7 +448,8 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
             message=Errors.NOT_OWNER,
         )
 
-        Utils.execute_fa2_token_transfer(
+        Utils.execute_typed_transfer(
+            self.data.deposit_token.token_type,
             self.data.deposit_token.token_address,
             sp.self_address,
             self.data.sender,
