@@ -124,7 +124,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         storage["stakes_owner_lookup"] = sp.big_map(
             tkey=sp.TAddress, tvalue=sp.TSet(sp.TNat)
         )
-        storage["disc_factor"] = sp.nat(Constants.PRECISION_FACTOR)
+        storage["disc_factor"] = sp.nat(0)
         storage["deposit_token"] = self.deposit_token
         storage["deposit_token_is_v2"] = self.deposit_token_is_v2
         storage["reward_token"] = self.reward_token
@@ -263,7 +263,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         self.data.expected_rewards = amt
 
     @sp.entry_point(check_no_incoming_transfer=True)
-     def handle_fa2_fetched_rewards(self, balance_of_response):
+    def handle_fa2_fetched_rewards(self, balance_of_response):
         """called by the token contract to set the apropriate balance.
 
         Args:
