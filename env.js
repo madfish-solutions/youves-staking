@@ -77,8 +77,11 @@ module.exports = {
             token_id: 0,
             token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
           },
-          max_release_period: 100,
-          administrators: MichelsonMap.fromLiteral({ [dev.pkh]: 1 }),
+          max_release_period: 7776000,
+          administrators: MichelsonMap.fromLiteral({
+            tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1,
+          }),
+          expected_rewards: 700000000,
         },
         1: {
           deposit_token: {
@@ -90,8 +93,11 @@ module.exports = {
             token_id: 0,
             token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
           },
-          max_release_period: 100,
-          administrators: MichelsonMap.fromLiteral({ [dev.pkh]: 1 }),
+          max_release_period: 7776000,
+          administrators: MichelsonMap.fromLiteral({
+            tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1,
+          }),
+          expected_rewards: 300000000,
         },
         2: {
           deposit_token: {
@@ -103,8 +109,11 @@ module.exports = {
             token_id: 0,
             token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
           },
-          max_release_period: 100,
-          administrators: MichelsonMap.fromLiteral({ [dev.pkh]: 1 }),
+          max_release_period: 7776000,
+          administrators: MichelsonMap.fromLiteral({
+            tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1,
+          }),
+          expected_rewards: 100000000,
         },
       },
     },
