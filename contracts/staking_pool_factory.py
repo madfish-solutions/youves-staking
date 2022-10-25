@@ -24,18 +24,20 @@ class StakingPoolFactory(sp.Contract, SingleAdministrableMixin):
       self.init(**self.get_init_storage())
 
   @sp.entry_point
-  def deploy_pool(self, deposit_token, deposit_token_is_v2, reward_token, max_release_period, administrators):
+  def deploy_pool(self, deposit_token, deposit_token_is_v2, reward_token, max_release_period, expected_rewards, administrators):
       self.verify_is_admin(sp.unit)
       sp.set_type(deposit_token, TokenType.get_type())
       sp.set_type(deposit_token_is_v2, sp.TBool)
       sp.set_type(reward_token, TokenType.get_type())
       sp.set_type(max_release_period, sp.TNat)
+      sp.set_type(expected_rewards, sp.TNat)
 
       new_pool = sp.create_contract(contract = UnifiedStakingPool(
             deposit_token,
             deposit_token_is_v2,
             reward_token,
             max_release_period,
+            expected_rewards,
             administrators))
       self.data.staking_pools[self.data.pool_counter] = new_pool
       self.data.pool_counter += sp.nat(1)

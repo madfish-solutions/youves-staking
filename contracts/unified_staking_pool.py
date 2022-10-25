@@ -132,12 +132,12 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         storage["last_rewards"] = sp.nat(0)
         storage["current_rewards"] = sp.nat(0)
         storage["administrators"] = self.administrators
-        storage["expected_rewards"] = sp.nat(0)
+        storage["expected_rewards"] = self.expected_rewards
 
         storage["operators"] = sp.big_map(tkey=OperatorKey.get_type(), tvalue=sp.TUnit)
         return storage
 
-    def __init__(self, deposit_token, deposit_token_is_v2, reward_token, max_release_period, administrators):
+    def __init__(self, deposit_token, deposit_token_is_v2, reward_token, max_release_period, expected_rewards, administrators):
         """Contract initialization with the token contract (YOU), the maximum age of a stake (if a stake has an age greater than
         max_release_period, the age will be considered max_release_period) and the administrator of the contract.
 
@@ -152,6 +152,7 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         self.deposit_token_is_v2 = deposit_token_is_v2
         self.reward_token = reward_token
         self.max_release_period = max_release_period
+        self.expected_rewards = expected_rewards
         self.administrators = administrators
         self.init(**self.get_init_storage())
 

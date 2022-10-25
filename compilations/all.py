@@ -13,6 +13,7 @@ sp.add_compilation_target(
         sp.bool(True),
         TokenType.make(sp.string("FA2"), sp.nat(0), Constants.DEFAULT_ADDRESS),
         sp.nat(180 * 24 * 60 * 60),
+        sp.nat(0),
         administrators=sp.big_map({}),
     ),
 )

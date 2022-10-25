@@ -17,45 +17,55 @@ module.exports = {
       secretKey: alice.sk,
       dexAddress: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
       quipuAddress: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+      factoryAdmin: "tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm",
       pools: {
         0: {
           deposit_token: {
+            token_type: "FA2",
             token_id: 0,
             token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
           },
           deposit_token_is_v2: true,
           reward_token: {
+            token_type: "FA2",
             token_id: 0,
             token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
           },
           max_release_period: 100,
-          administrators: MichelsonMap.fromLiteral({ [alice.pkh]: 1 }),
+          administrators: MichelsonMap.fromLiteral({ [alice.pkh]: "1" }),
+          expected_rewards: 700000000,
         },
         1: {
           deposit_token: {
+            token_type: "FA2",
             token_id: 1,
             token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
           },
           deposit_token_is_v2: true,
           reward_token: {
+            token_type: "FA2",
             token_id: 0,
             token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
           },
           max_release_period: 100,
-          administrators: MichelsonMap.fromLiteral({ [alice.pkh]: 1 }),
+          administrators: MichelsonMap.fromLiteral({ [alice.pkh]: "1" }),
+          expected_rewards: 300000000,
         },
         2: {
           deposit_token: {
+            token_type: "FA2",
             token_id: 2,
             token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
           },
           deposit_token_is_v2: true,
           reward_token: {
+            token_type: "FA2",
             token_id: 0,
             token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
           },
           max_release_period: 100,
           administrators: MichelsonMap.fromLiteral({ [alice.pkh]: 1 }),
+          expected_rewards: 100000000,
         },
       },
     },
@@ -66,14 +76,17 @@ module.exports = {
       secretKey: dev.sk,
       dexAddress: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
       quipuAddress: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+      factoryAdmin: "tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm",
       pools: {
         0: {
           deposit_token: {
+            token_type: "FA2",
             token_id: 0,
             token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
           },
           deposit_token_is_v2: true,
           reward_token: {
+            token_type: "FA2",
             token_id: 0,
             token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
           },
@@ -85,11 +98,13 @@ module.exports = {
         },
         1: {
           deposit_token: {
+            token_type: "FA2",
             token_id: 1,
             token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
           },
           deposit_token_is_v2: true,
           reward_token: {
+            token_type: "FA2",
             token_id: 0,
             token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
           },
@@ -101,11 +116,13 @@ module.exports = {
         },
         2: {
           deposit_token: {
+            token_type: "FA2",
             token_id: 2,
             token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
           },
           deposit_token_is_v2: true,
           reward_token: {
+            token_type: "FA2",
             token_id: 0,
             token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
           },
@@ -122,47 +139,73 @@ module.exports = {
       port: 443,
       network_id: "*",
       secretKey: mainnetDeployer.sk,
-      dexAddress: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
-      quipuAddress: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+      dexAddress: "KT1J8Hr3BP8bpbfmgGpRPoC9nAMSYtStZG43",
+      quipuAddress: "KT1X125rpfx7v2jxApYKQknh5gkkDWHJVuCn",
+      factoryAdmin: "tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm",
       pools: {
         0: {
           deposit_token: {
+            token_type: "FA2",
             token_id: 0,
-            token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+            token_address: "KT1J8Hr3BP8bpbfmgGpRPoC9nAMSYtStZG43",
           },
           deposit_token_is_v2: true,
           reward_token: {
+            token_type: "FA2",
             token_id: 0,
-            token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+            token_address: "KT1X125rpfx7v2jxApYKQknh5gkkDWHJVuCn",
           },
-          max_release_period: 100,
-          administrators: { [dev.pkh]: 1 },
+          max_release_period: 7776000,
+          administrators: { tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1 },
+          expected_rewards: 700000000,
         },
         1: {
           deposit_token: {
+            token_type: "FA2",
             token_id: 1,
-            token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+            token_address: "KT1J8Hr3BP8bpbfmgGpRPoC9nAMSYtStZG43",
           },
           deposit_token_is_v2: true,
           reward_token: {
+            token_type: "FA2",
             token_id: 0,
-            token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+            token_address: "KT1X125rpfx7v2jxApYKQknh5gkkDWHJVuCn",
           },
-          max_release_period: 100,
-          administrators: { [dev.pkh]: 1 },
+          max_release_period: 7776000,
+          administrators: { tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1 },
+          expected_rewards: 300000000,
         },
         2: {
           deposit_token: {
+            token_type: "FA2",
             token_id: 2,
-            token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+            token_address: "KT1J8Hr3BP8bpbfmgGpRPoC9nAMSYtStZG43",
           },
           deposit_token_is_v2: true,
           reward_token: {
+            token_type: "FA2",
             token_id: 0,
-            token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+            token_address: "KT1X125rpfx7v2jxApYKQknh5gkkDWHJVuCn",
           },
-          max_release_period: 100,
-          administrators: { [dev.pkh]: 1 },
+          max_release_period: 7776000,
+          administrators: { tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1 },
+          expected_rewards: 100000000,
+        },
+        3: {
+          deposit_token: {
+            token_type: "FA2",
+            token_id: 3,
+            token_address: "KT1J8Hr3BP8bpbfmgGpRPoC9nAMSYtStZG43",
+          },
+          deposit_token_is_v2: true,
+          reward_token: {
+            token_type: "FA2",
+            token_id: 0,
+            token_address: "KT1X125rpfx7v2jxApYKQknh5gkkDWHJVuCn",
+          },
+          max_release_period: 7776000,
+          administrators: { tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1 },
+          expected_rewards: 700000000,
         },
       },
     },
