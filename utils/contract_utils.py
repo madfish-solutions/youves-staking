@@ -1,7 +1,7 @@
 import smartpy as sp
 import utils.fa1 as fa1
 import utils.fa2 as fa2
-
+import utils.constants as Constants
 
 class Utils:
     """Utils class to facilitate certain operation. This is just syntactic sugar."""
@@ -43,6 +43,23 @@ class Utils:
             ]
             sp.transfer(transfer_payload, sp.mutez(0), transfer_token_contract)
 
+    def execute_typed_transfer(token_type, token_address, from_, to_, token_id, amount):
+        with sp.if_(token_type == Constants.TOKEN_TYPE_FA2):
+            Utils.execute_fa2_token_transfer(
+                token_address,
+                from_,
+                to_,
+                token_id,
+                amount,
+            )
+        with sp.else_():
+            Utils.execute_fa1_token_transfer(
+                token_address,
+                from_,
+                to_,
+                amount,
+            )
+
     def execute_get(
         contract_address, getter_entrypoint, setter_entrypoint, value_type=sp.TNat
     ):
@@ -62,29 +79,44 @@ class Utils:
         ).open_some()
         sp.transfer(callback_contract, sp.mutez(0), getter_contract)
 
-    def execute_get_own_balance(token_address, token_id, setter_entrypoint):
-        """executes a single fa2 balance request of the own balance.
+    def execute_get_own_balance(token_type, token_address, token_id):
+        """executes a single token balance request of the own balance.
 
         Args:
             token_address ([type]): token address to request balance from
             token_id (sp.nat): token id
             setter_entrypoint (sp.string): our callback
         """
-        getter_contract = sp.contract(
-            fa2.BalanceOf.get_type(), token_address, entry_point="balance_of"
-        ).open_some()
-        callback_contract = sp.contract(
-            fa2.BalanceOf.get_response_type(),
-            sp.self_address,
-            entry_point=setter_entrypoint,
-        ).open_some()
-        sp.transfer(
-            fa2.BalanceOf.make_one_request(
-                fa2.LedgerKey.make(token_id, sp.self_address), callback_contract
-            ),
-            sp.mutez(0),
-            getter_contract,
-        )
+        with sp.if_(token_type == Constants.TOKEN_TYPE_FA2):
+            getter_contract = sp.contract(
+                fa2.BalanceOf.get_type(), token_address, entry_point="balance_of"
+            ).open_some()
+            callback_contract = sp.contract(
+                fa2.BalanceOf.get_response_type(),
+                sp.self_address,
+                entry_point="handle_fa2_fetched_rewards",
+            ).open_some()
+            sp.transfer(
+                fa2.BalanceOf.make_one_request(
+                    fa2.LedgerKey.make(token_id, sp.self_address), callback_contract
+                ),
+                sp.mutez(0),
+                getter_contract,
+            )
+        with sp.else_():
+            getter_contract = sp.contract(
+                fa1.FA1GetBalance.get_type(), token_address, entry_point="getBalance"
+            ).open_some()
+            callback_contract = sp.contract(
+                sp.TNat,
+                sp.self_address,
+                entry_point="handle_fa12_fetched_rewards",
+            ).open_some()
+            sp.transfer(
+                fa1.FA1GetBalance.make_one_request(sp.self_address, callback_contract),
+                sp.mutez(0),
+                getter_contract,
+            )
 
     def execute_token_mint(token_address, to_, token_id, amount):
         """executes a token mint on the given address for the given amount.
