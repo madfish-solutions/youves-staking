@@ -75,7 +75,7 @@ def test_normal_staking_pool():
     ).run(sender=administrator)
 
     scenario.h1("Long Staking with release of 0")
-    staking_pool = UnifiedStakingPool(sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=token_id, token_address=staking_token.address), True, sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=0, token_address=reward_token.address), 180 * 24 * 60 * 60, {administrator.address: 1})
+    staking_pool = UnifiedStakingPool(sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=token_id, token_address=staking_token.address), True, sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=0, token_address=reward_token.address), 180 * 24 * 60 * 60, 0, {administrator.address: 1})
 
     scenario += staking_pool
 
@@ -289,7 +289,7 @@ def test_vesting_incentive():
     ).run(sender=administrator)
 
     scenario.h1("Long Staking with release of 0")
-    staking_pool = staking_pool = UnifiedStakingPool(sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=token_id, token_address=staking_token.address), True, sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=0, token_address=reward_token.address), 180 * 24 * 60 * 60, {administrator.address: 1})
+    staking_pool = staking_pool = UnifiedStakingPool(sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=token_id, token_address=staking_token.address), True, sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=0, token_address=reward_token.address), 180 * 24 * 60 * 60, 0, {administrator.address: 1})
 
     scenario += staking_pool
 
@@ -531,7 +531,7 @@ def test_multi_stakes_solo():
     staking_token_key = fa2.LedgerKey.make(0, staking_token.address)
                     
     unified_staking_pool = UnifiedStakingPool(
-        sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=token_id, token_address=staking_token.address), True, sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=token_id, token_address=reward_token.address), 100, {administrator.address: 1}
+        sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=token_id, token_address=staking_token.address), True, sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=token_id, token_address=reward_token.address), 100, 0, {administrator.address: 1}
     )
     scenario += unified_staking_pool
 
@@ -779,7 +779,7 @@ def test_multi_stakes():
     ).run(sender=administrator)
 
     scenario.h1("Long Staking with release of 0")
-    staking_pool = staking_pool = UnifiedStakingPool(sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=token_id, token_address=staking_token.address), True, sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=0, token_address=reward_token.address), 180 * 24 * 60 * 60, {administrator.address: 1})
+    staking_pool = UnifiedStakingPool(sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=token_id, token_address=staking_token.address), True, sp.record(token_type=Constants.TOKEN_TYPE_FA2, token_id=0, token_address=reward_token.address), 180 * 24 * 60 * 60, 0, {administrator.address: 1})
 
     scenario += staking_pool
 
@@ -968,7 +968,7 @@ def test_normal_staking_pool():
     scenario += staking_token
 
     scenario.h1("Long Staking with release of 0")
-    staking_pool = UnifiedStakingPool(sp.record(token_type=Constants.TOKEN_TYPE_FA1, token_id=token_id, token_address=staking_token.address), False, sp.record(token_type=Constants.TOKEN_TYPE_FA1, token_id=0, token_address=reward_token.address), 180 * 24 * 60 * 60, {administrator.address: 1})
+    staking_pool = UnifiedStakingPool(sp.record(token_type=Constants.TOKEN_TYPE_FA1, token_id=token_id, token_address=staking_token.address), False, sp.record(token_type=Constants.TOKEN_TYPE_FA1, token_id=0, token_address=reward_token.address), 180 * 24 * 60 * 60, 0, {administrator.address: 1})
 
     scenario += staking_pool
 

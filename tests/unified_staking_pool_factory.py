@@ -24,6 +24,7 @@ def test_normal_staking_pool():
         deposit_token_is_v2 = sp.bool(True),
         reward_token = TokenType.make(sp.string(Constants.TOKEN_TYPE_FA2), sp.nat(0), Constants.DEFAULT_ADDRESS),
         max_release_period = sp.nat(180 * 24 * 60 * 60),
+        expected_rewards = sp.nat(0),
         administrators=sp.big_map({administrator.address: 1}),
     )
     scenario += obj.deploy_pool(param).run(sender = administrator)
