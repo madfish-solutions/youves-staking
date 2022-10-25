@@ -201,6 +201,14 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
             unit (sp.unit): nothing
         """
         sp.set_type(stake_id, sp.TNat)
+
+        sp.verify(
+            self.data.stakes_owner_lookup[self.data.sender].contains(
+                stake_id
+            ),
+            message=Errors.NOT_OWNER,
+        )
+
         stake = sp.local("stake", self.data.stakes[stake_id])
         stake_age = sp.min(
             sp.as_nat(sp.now - stake.value.age_timestamp),
@@ -441,13 +449,6 @@ class UnifiedStakingPool(sp.Contract, InternalMixin, SingleAdministrableMixin):
         self.sub_claim(withdraw_paramter.stake_id)
 
         stake = sp.local("stake", self.data.stakes[withdraw_paramter.stake_id])
-
-        sp.verify(
-            self.data.stakes_owner_lookup[self.data.sender].contains(
-                withdraw_paramter.stake_id
-            ),
-            message=Errors.NOT_OWNER,
-        )
 
         Utils.execute_typed_transfer(
             self.data.deposit_token.token_type,

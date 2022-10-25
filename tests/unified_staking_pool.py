@@ -181,6 +181,10 @@ def test_normal_staking_pool():
     scenario += reward_token.mint(
         owner=staking_pool.address, token_id=token_id, token_amount=reward_amount
     )
+
+    scenario.p("can't claim if not owner")
+    scenario += staking_pool.claim(sp.record(stake_id=2)).run(sender=alice, now=now, valid=False)
+
     scenario.p("both claim, both get same reward")
     scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
     scenario += staking_pool.claim(sp.record(stake_id=2)).run(sender=bob, now=now)
