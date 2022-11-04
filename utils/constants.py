@@ -6,7 +6,7 @@ BID_FEE_BITSHIFT = 4  # expressed in bitshifts ==> 2**-4 ~= 6.25 % fee
 ADVERTISE_TIME_WINDOW_IN_SECONDS = 24 * 60 * 60  # 1 day
 OPTION_TIME_WINDOW_IN_SECONDS = 2 * 24 * 60 * 60  # 2 days
 
-DECIMALS = 12
+DECIMALS = 24
 PRECISION_FACTOR = 10**DECIMALS  # use base 2 for bitshifts
 
 MAX_STABLE_TOKEN_BITSHIFT = 2  # 25%
