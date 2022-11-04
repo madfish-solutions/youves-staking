@@ -82,56 +82,56 @@ module.exports = {
           deposit_token: {
             token_type: "FA2",
             token_id: 0,
-            token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+            token_address: "KT1MK1fWszdSA9cASnu7X6b6jCjyhVMRfT8K",
           },
-          deposit_token_is_v2: true,
+          deposit_token_is_v2: false,
           reward_token: {
             token_type: "FA2",
             token_id: 0,
             token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
           },
-          max_release_period: 7776000,
+          max_release_period: 15552000,
           administrators: MichelsonMap.fromLiteral({
             tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1,
           }),
-          expected_rewards: 700000000,
+          expected_rewards: 600000000,
         },
-        1: {
-          deposit_token: {
-            token_type: "FA2",
-            token_id: 1,
-            token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
-          },
-          deposit_token_is_v2: true,
-          reward_token: {
-            token_type: "FA2",
-            token_id: 0,
-            token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
-          },
-          max_release_period: 7776000,
-          administrators: MichelsonMap.fromLiteral({
-            tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1,
-          }),
-          expected_rewards: 300000000,
-        },
-        2: {
-          deposit_token: {
-            token_type: "FA2",
-            token_id: 2,
-            token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
-          },
-          deposit_token_is_v2: true,
-          reward_token: {
-            token_type: "FA2",
-            token_id: 0,
-            token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
-          },
-          max_release_period: 7776000,
-          administrators: MichelsonMap.fromLiteral({
-            tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1,
-          }),
-          expected_rewards: 100000000,
-        },
+        // 1: {
+        //   deposit_token: {
+        //     token_type: "FA2",
+        //     token_id: 1,
+        //     token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+        //   },
+        //   deposit_token_is_v2: true,
+        //   reward_token: {
+        //     token_type: "FA2",
+        //     token_id: 0,
+        //     token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+        //   },
+        //   max_release_period: 7776000,
+        //   administrators: MichelsonMap.fromLiteral({
+        //     tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1,
+        //   }),
+        //   expected_rewards: 300000000,
+        // },
+        // 2: {
+        //   deposit_token: {
+        //     token_type: "FA2",
+        //     token_id: 2,
+        //     token_address: "KT1GPJDTf8GZspCcanaG2KhMvGu3NJRqurat",
+        //   },
+        //   deposit_token_is_v2: true,
+        //   reward_token: {
+        //     token_type: "FA2",
+        //     token_id: 0,
+        //     token_address: "KT19363aZDTjeRyoDkSLZhCk62pS4xfvxo6c",
+        //   },
+        //   max_release_period: 7776000,
+        //   administrators: MichelsonMap.fromLiteral({
+        //     tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1,
+        //   }),
+        //   expected_rewards: 100000000,
+        // },
       },
     },
     mainnet: {
@@ -139,82 +139,82 @@ module.exports = {
       port: 443,
       network_id: "*",
       secretKey: mainnetDeployer.sk,
-      dexAddress: "KT1J8Hr3BP8bpbfmgGpRPoC9nAMSYtStZG43",
-      quipuAddress: "KT193D4vozYnhGJQVtw7CoxxqphqUEEwK6Vb",
+      dexAddress: "KT1M2b4XCUq5zqMNqQAotUar7BSUiNDE4Dgh",
+      quipuAddress: "KT1UG6PdaKoJcc3yD6mkFVfxnS1uJeW3cGeX",
       factoryAdmin: "tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm",
       pools: {
         0: {
           deposit_token: {
             token_type: "FA2",
             token_id: 0,
-            token_address: "KT1J8Hr3BP8bpbfmgGpRPoC9nAMSYtStZG43",
+            token_address: "KT1M2b4XCUq5zqMNqQAotUar7BSUiNDE4Dgh",
           },
-          deposit_token_is_v2: true,
+          deposit_token_is_v2: false,
           reward_token: {
             token_type: "FA2",
             token_id: 0,
-            token_address: "KT193D4vozYnhGJQVtw7CoxxqphqUEEwK6Vb",
+            token_address: "KT1UG6PdaKoJcc3yD6mkFVfxnS1uJeW3cGeX",
           },
-          max_release_period: 7776000,
+          max_release_period: 15552000,
           administrators: MichelsonMap.fromLiteral({
             tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1,
           }),
-          expected_rewards: 700000000,
+          expected_rewards: 600000000,
         },
-        1: {
-          deposit_token: {
-            token_type: "FA2",
-            token_id: 1,
-            token_address: "KT1J8Hr3BP8bpbfmgGpRPoC9nAMSYtStZG43",
-          },
-          deposit_token_is_v2: true,
-          reward_token: {
-            token_type: "FA2",
-            token_id: 0,
-            token_address: "KT193D4vozYnhGJQVtw7CoxxqphqUEEwK6Vb",
-          },
-          max_release_period: 7776000,
-          administrators: MichelsonMap.fromLiteral({
-            tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1,
-          }),
-          expected_rewards: 100000000,
-        },
-        2: {
-          deposit_token: {
-            token_type: "FA2",
-            token_id: 2,
-            token_address: "KT1J8Hr3BP8bpbfmgGpRPoC9nAMSYtStZG43",
-          },
-          deposit_token_is_v2: true,
-          reward_token: {
-            token_type: "FA2",
-            token_id: 0,
-            token_address: "KT193D4vozYnhGJQVtw7CoxxqphqUEEwK6Vb",
-          },
-          max_release_period: 7776000,
-          administrators: MichelsonMap.fromLiteral({
-            tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1,
-          }),
-          expected_rewards: 300000000,
-        },
-        3: {
-          deposit_token: {
-            token_type: "FA2",
-            token_id: 3,
-            token_address: "KT1J8Hr3BP8bpbfmgGpRPoC9nAMSYtStZG43",
-          },
-          deposit_token_is_v2: true,
-          reward_token: {
-            token_type: "FA2",
-            token_id: 0,
-            token_address: "KT193D4vozYnhGJQVtw7CoxxqphqUEEwK6Vb",
-          },
-          max_release_period: 7776000,
-          administrators: MichelsonMap.fromLiteral({
-            tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1,
-          }),
-          expected_rewards: 700000000,
-        },
+        // 1: {
+        //   deposit_token: {
+        //     token_type: "FA2",
+        //     token_id: 1,
+        //     token_address: "KT1J8Hr3BP8bpbfmgGpRPoC9nAMSYtStZG43",
+        //   },
+        //   deposit_token_is_v2: true,
+        //   reward_token: {
+        //     token_type: "FA2",
+        //     token_id: 0,
+        //     token_address: "KT193D4vozYnhGJQVtw7CoxxqphqUEEwK6Vb",
+        //   },
+        //   max_release_period: 7776000,
+        //   administrators: MichelsonMap.fromLiteral({
+        //     tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1,
+        //   }),
+        //   expected_rewards: 100000000,
+        // },
+        // 2: {
+        //   deposit_token: {
+        //     token_type: "FA2",
+        //     token_id: 2,
+        //     token_address: "KT1J8Hr3BP8bpbfmgGpRPoC9nAMSYtStZG43",
+        //   },
+        //   deposit_token_is_v2: true,
+        //   reward_token: {
+        //     token_type: "FA2",
+        //     token_id: 0,
+        //     token_address: "KT193D4vozYnhGJQVtw7CoxxqphqUEEwK6Vb",
+        //   },
+        //   max_release_period: 7776000,
+        //   administrators: MichelsonMap.fromLiteral({
+        //     tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1,
+        //   }),
+        //   expected_rewards: 300000000,
+        // },
+        // 3: {
+        //   deposit_token: {
+        //     token_type: "FA2",
+        //     token_id: 3,
+        //     token_address: "KT1J8Hr3BP8bpbfmgGpRPoC9nAMSYtStZG43",
+        //   },
+        //   deposit_token_is_v2: true,
+        //   reward_token: {
+        //     token_type: "FA2",
+        //     token_id: 0,
+        //     token_address: "KT193D4vozYnhGJQVtw7CoxxqphqUEEwK6Vb",
+        //   },
+        //   max_release_period: 7776000,
+        //   administrators: MichelsonMap.fromLiteral({
+        //     tz1SiQVaEjEgPwvhq5ACt5YbtLk7i4MtBCsm: 1,
+        //   }),
+        //   expected_rewards: 700000000,
+        // },
       },
     },
   },

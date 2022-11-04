@@ -1,5 +1,5 @@
 import smartpy as sp
-
+from decimal import Decimal
 import utils.constants as Constants
 import utils.fa2 as fa2
 import utils.fa1 as fa1
@@ -201,7 +201,9 @@ def test_normal_staking_pool():
     bob_reward += reward_amount // 3
     scenario += reward_token.mint(
         owner=staking_pool.address, token_id=token_id, token_amount=reward_amount
-    )
+    )  
+
+
     scenario.p("both claim, alice gets 2/3 and bob 1/3")
     scenario += staking_pool.claim(sp.record(stake_id=1)).run(sender=alice, now=now)
     scenario += staking_pool.claim(sp.record(stake_id=2)).run(sender=bob, now=now)
@@ -930,15 +932,18 @@ def test_multi_stakes():
     scenario += staking_pool.withdraw(
         sp.record(stake_id=3)
     ).run(sender=alice.address, now=now)
-    alice_reward = reward_amount + int((reward_amount / (3 * Constants.PRECISION_FACTOR)) * 1 * Constants.PRECISION_FACTOR)
 
+    
+    alice_reward = reward_amount + int((Decimal(reward_amount) / (3* Decimal(10)**Constants.DECIMALS)) * Decimal(10)**Constants.DECIMALS)
+
+    scenario.show(reward_token.data.ledger[alice_ledger_key])
     scenario.verify_equal(reward_token.data.ledger[alice_ledger_key], alice_reward)
 
     scenario.p("Bob withdraw after end period 1st stake, and receives 100% of 1st reward + 50%  of second reward")
     scenario += staking_pool.withdraw(
         sp.record(stake_id=4)
     ).run(sender=bob.address, now=now)
-    bobs_reward = reward_amount + int((reward_amount / (3 * Constants.PRECISION_FACTOR)) * 1 * Constants.PRECISION_FACTOR)
+    bobs_reward = reward_amount + int((Decimal(reward_amount) / (3* Decimal(10)**Constants.DECIMALS)) * Decimal(10)**Constants.DECIMALS)
     scenario.show(reward_token.data.ledger[bob_ledger_key])
     scenario.verify_equal(reward_token.data.ledger[bob_ledger_key], bobs_reward)
 
@@ -947,7 +952,7 @@ def test_multi_stakes():
     scenario += staking_pool.withdraw(
         sp.record(stake_id=5)
     ).run(sender=bob.address, now=now)
-    bobs_reward += int((reward_amount / (3 * Constants.PRECISION_FACTOR)) * 1 * Constants.PRECISION_FACTOR)
+    bobs_reward += int((Decimal(reward_amount) / (3* Decimal(10)**Constants.DECIMALS)) * Decimal(10)**Constants.DECIMALS)
     scenario.verify_equal(reward_token.data.ledger[bob_ledger_key], bobs_reward)
 
 @sp.add_test(name="Normal Staking Pool fa12 full")
