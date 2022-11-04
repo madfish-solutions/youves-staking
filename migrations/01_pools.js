@@ -18,15 +18,6 @@ module.exports = async (tezos, network) => {
       .storage()
       .then(storage => storage.pool_counter);
 
-    const poolStorage = {
-      deposit_token: pool.deposit_token,
-      deposit_token_is_v2: pool.deposit_token_is_v2,
-      reward_token: pool.reward_token,
-      max_release_period: pool.max_release_period,
-      expected_rewards: pool.expected_rewards,
-      administrators: pool.administrators,
-    };
-
     const operation = await factory.methodsObject
       .deploy_pool({
         deposit_token: pool.deposit_token,

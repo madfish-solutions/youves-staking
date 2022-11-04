@@ -9,6 +9,7 @@
     "compile": "SmartPy.sh compile compilations/all.py compilations/out",
     "migrate": "ts-node scripts/cli.js migrate",
     "migrate-ghostnet": "ts-node scripts/cli.js migrate -n ghostnet",
+    "migrate-mainnet": "ts-node scripts/cli.js migrate -n mainnet",
     "test": "ts-mocha --paths test/*.spec.ts --bail",
     "test-pool-factory": "SmartPy.sh test tests/unified_staking_pool_factory.py tests/out --html",
     "test-pool": "SmartPy.sh test tests/unified_staking_pool.py tests/out --html",
